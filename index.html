@@ -146,7 +146,7 @@
           </div>
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
             <i class="fa-solid fa-location-crosshairs text-amber-600 text-base"></i>
-            <span>سيتم تفعيل التتبع المباشر GPS والإشعارات لسلامتك طوال الرحلة.</span>
+            <span>سيتم طلب صلاحية الـ GPS الفعلي والإشعارات لمتابعة موقعك الحقيقي طوال الرحلة.</span>
           </div>
           <button type="submit" class="w-full gold-gradient text-dahab-navy font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
             دخول بوابة الحاج
@@ -231,7 +231,7 @@
           </button>
           <button type="button" onclick="switchAdminSection('map')" data-sec="map" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
             <i class="fa-solid fa-map-location-dot w-5 text-center"></i>
-            <span>الخريطة الحية وتتبع الباصات</span>
+            <span>الخريطة الحية وتتبع الحجاج</span>
           </button>
           <button type="button" onclick="switchAdminSection('trips')" data-sec="trips" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
             <i class="fa-solid fa-plane-departure w-5 text-center"></i>
@@ -281,7 +281,7 @@
         </div>
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>بث حي</span>
+          <span>GPS فعلي مباشر</span>
         </span>
       </header>
 
@@ -294,6 +294,7 @@
               <div>
                 <span class="text-xs font-bold text-slate-500">إجمالي الحجاج</span>
                 <h3 id="statTotalPilgrims" class="text-3xl font-black text-dahab-navy mt-1">0</h3>
+                <span id="statGpsConnectedSub" class="text-[11px] text-blue-600 font-bold">0 متصل بالـ GPS الفعلي</span>
               </div>
               <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-users"></i></div>
             </div>
@@ -307,7 +308,7 @@
             </div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
               <div>
-                <span class="text-xs font-bold text-slate-500">داخل نطاق الأمان</span>
+                <span class="text-xs font-bold text-slate-500">داخل نطاق الأمان (GPS فعلي)</span>
                 <h3 id="statSafeZone" class="text-3xl font-black text-dahab-goldDark mt-1">0%</h3>
                 <span id="statOutsideCount" class="text-[11px] text-rose-600 font-bold">0 خارج النطاق</span>
               </div>
@@ -357,11 +358,11 @@
               <button type="button" onclick="panAdminMap(24.4672, 39.6111, 15)" class="px-3 py-2 rounded-xl bg-blue-700 text-white text-xs font-bold">المدينة المنورة</button>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="fitAdminMapToLivePilgrims()" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                <i class="fa-solid fa-crosshairs ml-1"></i> تركيز على الحجاج المتصلين
+              </button>
               <button type="button" onclick="toggleMapStyle('admin')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300">
                 <i class="fa-solid fa-satellite ml-1 text-dahab-goldDark"></i> تبديل (خريطة / قمر صناعي)
-              </button>
-              <button type="button" onclick="simulateMovement()" class="px-4 py-2 rounded-xl gold-gradient text-dahab-navy text-xs font-black shadow">
-                <i class="fa-solid fa-bus ml-1"></i> محاكاة تحرك الحجاج والباصات
               </button>
             </div>
           </div>
@@ -388,8 +389,14 @@
           </div>
 
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-            <h3 class="font-bold text-dahab-navy mb-4">تكويد مجموعة جديدة داخل رحلة</h3>
-            <form onsubmit="handleAddGroup(event)" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 id="groupFormTitle" class="font-bold text-dahab-navy">تكويد مجموعة جديدة داخل رحلة</h3>
+              <button type="button" id="cancelEditGroupBtn" onclick="resetGroupForm()" class="hidden px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+                إلغاء التعديل
+              </button>
+            </div>
+            <form onsubmit="handleSaveGroup(event)" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+              <input type="hidden" id="editGroupId">
               <select id="grpTripId" required class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></select>
               <input type="text" id="grpCode" required placeholder="كود المجموعة (GRP-C1)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="grpName" required placeholder="اسم المجموعة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
@@ -405,7 +412,7 @@
               <input type="text" id="grpHotelMadinah" required placeholder="فندق المدينة المنورة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="grpCampArafat" required placeholder="مخيم عرفات" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="grpCampMina" required placeholder="مخيم منى" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
-              <button type="submit" class="sm:col-span-3 lg:col-span-4 py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">حفظ المجموعة</button>
+              <button type="submit" id="saveGroupBtn" class="sm:col-span-3 lg:col-span-4 py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">حفظ المجموعة</button>
             </form>
             <div id="groupsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
           </div>
@@ -451,7 +458,7 @@
                     <th class="p-3">الجواز</th>
                     <th class="p-3">المجموعة</th>
                     <th class="p-3">الفندق والغرف</th>
-                    <th class="p-3">الحالة الصحية</th>
+                    <th class="p-3">حالة الـ GPS الفعلي</th>
                     <th class="p-3">حضور الباص</th>
                     <th class="p-3">إجراءات</th>
                   </tr>
@@ -499,12 +506,15 @@
               <i class="fa-solid fa-map-pin text-dahab-gold"></i>
               <span>إضافة لوكيشن الفنادق والمخيمات ونطاق الأمان (اختر من الخريطة)</span>
             </h3>
-            <p class="text-xs text-slate-500 mb-4">اضغط على أي نقطة في الخريطة بالأسفل لتحديد موقع الفندق أو المخيم تلقائياً، أو اسحب الدبوس لضبط الإحداثيات بدقة.</p>
+            <p class="text-xs text-slate-500 mb-4">اضغط على أي نقطة في الخريطة بالأسفل لتحديد موقع الفندق أو نقطة التجمع تلقائياً، أو اسحب الدبوس لضبط الإحداثيات بدقة.</p>
             
             <div class="mb-4 relative border border-slate-200 rounded-2xl overflow-hidden shadow-inner">
               <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span class="font-bold text-dahab-navy"><i class="fa-solid fa-hand-pointer text-dahab-gold ml-1"></i>انقر على الخريطة لتحديد الموقع</span>
                 <div class="flex flex-wrap gap-1.5">
+                  <button type="button" onclick="useMyCurrentLocationOnPicker()" class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700">
+                    <i class="fa-solid fa-location-crosshairs ml-1"></i>موقعي الحالي
+                  </button>
                   <button type="button" onclick="toggleMapStyle('picker')" class="px-2.5 py-1 rounded-lg bg-dahab-navy text-dahab-gold font-bold hover:opacity-90">
                     <i class="fa-solid fa-satellite ml-1"></i>قمر صناعي
                   </button>
@@ -615,7 +625,7 @@
       <!-- تبويب 2: خريطة حجاج المجموعة -->
       <section id="supSec-map" class="sup-section hidden bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-2">
         <div class="flex justify-between items-center px-1">
-          <span class="text-xs font-bold text-dahab-navy"><i class="fa-solid fa-location-dot text-dahab-gold ml-1"></i>مواقع حجاج مجموعتي المباشرة</span>
+          <span class="text-xs font-bold text-dahab-navy"><i class="fa-solid fa-location-dot text-dahab-gold ml-1"></i>مواقع حجاج مجموعتي الفعلية (GPS)</span>
           <button type="button" onclick="toggleMapStyle('sup')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300">
             <i class="fa-solid fa-satellite ml-1 text-dahab-goldDark"></i> تبديل (خريطة / قمر صناعي)
           </button>
@@ -643,7 +653,7 @@
     <div class="bg-emerald-900 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-40">
       <div class="flex items-center gap-2">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-        <span id="pilGpsBadge" class="font-bold">GPS نشط ومتصل بالإدارة</span>
+        <span id="pilGpsBadge" class="font-bold">جاري تحديد موقعك الفعلي عبر GPS...</span>
       </div>
       <span class="text-amber-300 font-bold"><i class="fa-solid fa-bell ml-1"></i>الإشعارات مفعلة</span>
     </div>
@@ -665,7 +675,7 @@
         <button type="button" onclick="sendPilgrimSos()" class="bg-rose-600 hover:bg-rose-700 text-white p-4 rounded-2xl shadow-lg flex flex-col items-center text-center border-2 border-rose-400">
           <i class="fa-solid fa-kit-medical text-2xl mb-1.5 animate-bounce"></i>
           <span class="font-black text-sm">طوارئ SOS</span>
-          <span class="text-[11px] text-rose-100">إرسال موقعي فوراً</span>
+          <span class="text-[11px] text-rose-100">إرسال موقعي الفعلي فوراً</span>
         </button>
 
         <button type="button" onclick="openQrCheckinBox()" class="gold-gradient text-dahab-navy p-4 rounded-2xl shadow-lg flex flex-col items-center text-center border-2 border-amber-200">
@@ -700,11 +710,9 @@
           </button>
         </div>
 
-        <!-- حاوية كاميرا مسح الباركود -->
         <div id="qrReaderContainer" class="rounded-xl overflow-hidden bg-slate-900 min-h-[220px] flex items-center justify-center"></div>
         <p id="qrCameraStatusMsg" class="text-center text-xs font-bold text-emerald-700">جاري تشغيل الكاميرا لمسح الباركود...</p>
 
-        <!-- بديل الإدخال اليدوي في حال عدم توفر كاميرا -->
         <details class="pt-2 border-t border-slate-100">
           <summary class="text-[11px] font-bold text-slate-500 cursor-pointer select-none">إدخال الكود يدوياً (في حال تعذر فتح الكاميرا)</summary>
           <div class="flex gap-2 mt-2">
@@ -759,7 +767,6 @@
           </div>
         </div>
 
-        <!-- الإشعارات والتعليمات -->
         <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
           <h3 class="font-bold text-dahab-navy mb-3 flex items-center gap-2">
             <i class="fa-solid fa-bell text-dahab-gold"></i><span>التعليمات والإشعارات</span>
@@ -819,16 +826,16 @@
   <!-- منطقة الطباعة للباركود -->
   <div id="printableQrArea" class="hidden"></div>
 
-  <!-- منطق التطبيق الأساسي (متاح فوراً لجميع الأزرار) -->
+  <!-- منطق التطبيق الأساسي -->
   <script>
-    const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v2';
-    const LOCAL_STATE_KEY = 'dahab_tours_local_state_v2';
-    const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dahab_tours_sync_channel') : null;
+    const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v3';
+    const LOCAL_STATE_KEY = 'dahab_tours_local_state_v3';
+    const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dahab_tours_sync_channel_v3') : null;
 
-    // تعريف متغيرات الخرائط وطبقات البلاط (CartoDB Voyager & Esri Satellite)
     let adminMapInstance = null, adminBaseTile = null, adminMarkersLayer = null, adminMapMode = 'streets';
     let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
     let pickerMapInstance = null, pickerBaseTile = null, pickerMarker = null, pickerCircle = null, pickerMapMode = 'streets';
+    let pilgrimGpsWatchId = null;
 
     function createMapTileLayer(mode) {
       if (mode === 'satellite') {
@@ -860,7 +867,6 @@
       }
     };
 
-    // دوال الحفظ والحذف الموحدة (محلي + سحابي)
     window.dbSave = async function(colName, id, data) {
       const list = window.appState[colName] || [];
       if (id) {
@@ -888,6 +894,7 @@
       }
     };
 
+    // البيانات الافتراضية بدون أي مواقع GPS وهمية للحجاج (lat: null, lng: null)
     const defaultSeedData = {
       trips: [
         { id: 'trip-1', code: 'HAJ-1447', type: 'حج سياحي', year: '1447 هـ' }
@@ -927,10 +934,10 @@
         }
       ],
       pilgrims: [
-        { id: 'pil-1', name: 'الحاج أحمد محمد محمود', age: 58, groupId: 'grp-1', passport: 'A102030', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'سليم', present: false, lat: 21.4222, lng: 39.8258 },
-        { id: 'pil-2', name: 'الحاجة فاطمة علي حسن', age: 54, groupId: 'grp-1', passport: 'A102031', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'ضغط دم مستقر', present: true, lat: 21.4226, lng: 39.8264 },
-        { id: 'pil-3', name: 'الحاج مصطفى إبراهيم سالم', age: 63, groupId: 'grp-1', passport: 'A102032', hotel: 'فندق ساعة مكة فيرمونت', room: '410', madinahRoom: '308', health: 'سكري', present: false, lat: 21.4219, lng: 39.8252 },
-        { id: 'pil-4', name: 'الحاج خالد عبد الله عمر', age: 47, groupId: 'grp-2', passport: 'B203040', hotel: 'فندق سويس أوتيل المقام', room: '712', madinahRoom: '514', health: 'سليم', present: true, lat: 21.4231, lng: 39.8268 }
+        { id: 'pil-1', name: 'الحاج أحمد محمد محمود', age: 58, groupId: 'grp-1', passport: 'A102030', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'سليم', present: false, lat: null, lng: null },
+        { id: 'pil-2', name: 'الحاجة فاطمة علي حسن', age: 54, groupId: 'grp-1', passport: 'A102031', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'ضغط دم مستقر', present: true, lat: null, lng: null },
+        { id: 'pil-3', name: 'الحاج مصطفى إبراهيم سالم', age: 63, groupId: 'grp-1', passport: 'A102032', hotel: 'فندق ساعة مكة فيرمونت', room: '410', madinahRoom: '308', health: 'سكري', present: false, lat: null, lng: null },
+        { id: 'pil-4', name: 'الحاج خالد عبد الله عمر', age: 47, groupId: 'grp-2', passport: 'B203040', hotel: 'فندق سويس أوتيل المقام', room: '712', madinahRoom: '514', health: 'سليم', present: true, lat: null, lng: null }
       ],
       programs: [
         { id: 'prg-1', day: '8 ذو الحجة (التروية)', time: '07:00 صباحاً', title: 'التحرك من فندق مكة إلى مشعر منى', details: 'التجمع في بهو الفندق بملابس الإحرام وحمل بطاقة الحاج والمظلة الشمسية.' },
@@ -1166,6 +1173,10 @@
 
     window.logout = function() {
       if (typeof window.closeQrCheckinBox === 'function') window.closeQrCheckinBox();
+      if (pilgrimGpsWatchId !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(pilgrimGpsWatchId);
+        pilgrimGpsWatchId = null;
+      }
       clearAuthSession();
       window.appState.role = null;
       window.appState.currentEntity = null;
@@ -1203,6 +1214,11 @@
       document.getElementById('pilHeaderName').textContent = pil.name;
       document.getElementById('pilHeaderPassport').textContent = `رقم الجواز: ${pil.passport}`;
       document.getElementById('pilAttendanceStatus').textContent = pil.present ? 'تم تسجيل حضورك بالباص ✅' : 'اضغط لفتح الكاميرا';
+
+      const gpsBadge = document.getElementById('pilGpsBadge');
+      if (gpsBadge && typeof pil.lat === 'number' && typeof pil.lng === 'number') {
+        gpsBadge.textContent = `GPS فعلي متصل (${pil.lat.toFixed(4)}, ${pil.lng.toFixed(4)})`;
+      }
 
       document.getElementById('pilGroupName').textContent = grp?.name || '--';
       document.getElementById('pilBusNumber').textContent = grp?.busNo || '--';
@@ -1291,17 +1307,34 @@
       await processScannedQrCode(code);
     };
 
+    // طلب التتبع الفعلي الحقيقي من جهاز الحاج (بدون أي إحداثيات افتراضية)
     function requestPilgrimPermissions() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
+      const gpsBadge = document.getElementById('pilGpsBadge');
       if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          const pil = window.appState.currentEntity;
-          if (pil) {
-            window.dbSave('pilgrims', pil.id, { lat: pos.coords.latitude, lng: pos.coords.longitude });
-          }
-        }, () => {});
+        if (pilgrimGpsWatchId !== null) {
+          navigator.geolocation.clearWatch(pilgrimGpsWatchId);
+        }
+        pilgrimGpsWatchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const pil = window.appState.currentEntity;
+            if (pil) {
+              window.dbSave('pilgrims', pil.id, {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                gpsUpdatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+              });
+            }
+          },
+          (err) => {
+            if (gpsBadge) gpsBadge.textContent = 'يرجى تفعيل صلاحية الموقع (GPS) من المتصفح';
+          },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+        );
+      } else if (gpsBadge) {
+        gpsBadge.textContent = 'المتصفح لا يدعم GPS';
       }
     }
 
@@ -1327,6 +1360,10 @@
       if (secId === 'locations') setTimeout(() => initLocationPickerMap(), 150);
     };
 
+    function hasValidGps(pil) {
+      return typeof pil.lat === 'number' && typeof pil.lng === 'number' && !isNaN(pil.lat) && !isNaN(pil.lng);
+    }
+
     function getDistanceMeters(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const p1 = lat1 * Math.PI / 180;
@@ -1338,7 +1375,7 @@
     }
 
     function isPilgrimInSafeZone(pil) {
-      if (!pil.lat || !pil.lng || window.appState.locations.length === 0) return true;
+      if (!hasValidGps(pil) || window.appState.locations.length === 0) return true;
       return window.appState.locations.some(loc => getDistanceMeters(pil.lat, pil.lng, loc.lat, loc.lng) <= (loc.radius || 500));
     }
 
@@ -1366,25 +1403,32 @@
       }
 
       const totalPil = pilgrims.length;
+      const gpsPilgrims = pilgrims.filter(p => hasValidGps(p));
       const presentPil = pilgrims.filter(p => p.present).length;
       const presentPct = totalPil ? Math.round((presentPil / totalPil) * 100) : 0;
-      const safePil = pilgrims.filter(p => isPilgrimInSafeZone(p)).length;
-      const outsidePil = totalPil - safePil;
-      const safePct = totalPil ? Math.round((safePil / totalPil) * 100) : 0;
+
+      const safePil = gpsPilgrims.filter(p => isPilgrimInSafeZone(p)).length;
+      const outsidePil = gpsPilgrims.length - safePil;
+      const safePct = gpsPilgrims.length ? Math.round((safePil / gpsPilgrims.length) * 100) : 100;
 
       document.getElementById('statTotalPilgrims').textContent = totalPil;
+      document.getElementById('statGpsConnectedSub').textContent = `${gpsPilgrims.length} متصل بالـ GPS الفعلي`;
       document.getElementById('statBusPresent').textContent = `${presentPct}%`;
       document.getElementById('statBusSub').textContent = `${presentPil} من ${totalPil} حاج`;
       document.getElementById('statSafeZone').textContent = `${safePct}%`;
-      document.getElementById('statOutsideCount').textContent = `${outsidePil} خارج النطاق`;
+      document.getElementById('statOutsideCount').textContent = `${outsidePil} خارج النطاق (من المتصلين)`;
       document.getElementById('statSosCount').textContent = sosAlerts.length;
       document.getElementById('adminSosBadge').textContent = sosAlerts.length;
 
       const insights = [];
-      if (outsidePil > 0) insights.push(`⚠️ يوجد ${outsidePil} حاج خارج نطاق أمان الفنادق والمخيمات، يُنصح بإرسال تنبيه للمشرفين لمتابعتهم.`);
-      if (totalPil - presentPil > 0) insights.push(`🚌 متبقي ${totalPil - presentPil} حاج لم يكتمل تحضيرهم في الباصات بعد، يرجى التذكير بمسح الباركود.`);
+      if (gpsPilgrims.length === 0) {
+        insights.push(`📡 بانتظار دخول الحجاج من هواتفهم لتفعيل الإحداثيات الفعلية (GPS) وعرضها مباشرة على الخريطة.`);
+      } else if (outsidePil > 0) {
+        insights.push(`⚠️ يوجد ${outsidePil} حاج خارج نطاق أمان الفنادق والمواقع المحددة وفق إحداثياتهم الفعلية.`);
+      }
+      if (totalPil - presentPil > 0) insights.push(`🚌 متبقي ${totalPil - presentPil} حاج لم يكتمل تحضيرهم في الباصات بعد.`);
       if (sosAlerts.length > 0) insights.push(`🚨 يوجد ${sosAlerts.length} بلاغ طوارئ SOS نشط يتطلب تدخل فريق الدعم الميداني فوراً.`);
-      if (insights.length === 0) insights.push(`✅ جميع الحجاج داخل نطاق الأمان ونسبة الانضباط في التفويج ممتازة.`);
+      if (insights.length === 0) insights.push(`✅ جميع الحجاج المتصلين داخل نطاق الأمان ونسبة الانضباط في التفويج ممتازة.`);
 
       document.getElementById('smartInsightsContainer').innerHTML = insights.map(txt => `
         <div class="bg-white/10 p-3.5 rounded-xl text-xs font-bold border border-white/10">${txt}</div>
@@ -1408,14 +1452,14 @@
       }).join('');
 
       document.getElementById('locationPresenceList').innerHTML = locations.map(loc => {
-        const count = pilgrims.filter(p => p.lat && p.lng && getDistanceMeters(p.lat, p.lng, loc.lat, loc.lng) <= loc.radius).length;
+        const count = gpsPilgrims.filter(p => getDistanceMeters(p.lat, p.lng, loc.lat, loc.lng) <= loc.radius).length;
         return `
           <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
             <div>
               <span class="font-bold text-dahab-navy block">${loc.name}</span>
               <span class="text-slate-400">نطاق الأمان: ${loc.radius} متر</span>
             </div>
-            <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black">${count} حاج</span>
+            <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black">${count} حاج متصل</span>
           </div>
         `;
       }).join('');
@@ -1435,17 +1479,26 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-4 h-4 rounded-full" style="background:${g.color}"></span>
-              <h4 class="font-black text-dahab-navy text-sm">${g.name} (${g.code})</h4>
+              <h4 class="font-black text-dahab-navy text-sm">${g.name} <span class="font-mono text-xs text-slate-500">(${g.code})</span></h4>
             </div>
-            <button type="button" onclick="dbDelete('groups', '${g.id}')" class="text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="editGroup('${g.id}')" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1">
+                <i class="fa-solid fa-pen"></i><span>تعديل</span>
+              </button>
+              <button type="button" onclick="dbDelete('groups', '${g.id}')" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
           </div>
-          <p class="text-xs text-slate-600"><b>المشرف:</b> ${g.supName} (${g.supCode}) | <b>الباص:</b> ${g.busNo}</p>
+          <p class="text-xs text-slate-600"><b>المشرف:</b> ${g.supName} (${g.supCode}) | <b>الهاتف:</b> ${g.supPhone} | <b>الباص:</b> ${g.busNo}</p>
           <p class="text-xs text-slate-500"><b>مكة:</b> ${g.hotelMakkah} | <b>المدينة:</b> ${g.hotelMadinah}</p>
+          <p class="text-xs text-slate-500"><b>عرفات:</b> ${g.campArafat} | <b>منى:</b> ${g.campMina}</p>
         </div>
       `).join('');
 
       document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.map(p => {
         const grp = groups.find(g => g.id === p.groupId);
+        const gpsActive = hasValidGps(p);
         return `
           <tr>
             <td class="p-3 font-bold text-dahab-navy">${p.name}</td>
@@ -1455,7 +1508,11 @@
               مكة: <b>${p.room || '-'}</b> | المدينة: <b>${p.madinahRoom || '-'}</b><br>
               <span class="text-slate-400">${p.hotel || grp?.hotelMakkah || ''}</span>
             </td>
-            <td class="p-3 text-xs">${p.health || 'سليم'}</td>
+            <td class="p-3 text-xs">
+              ${gpsActive
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>متصل فعلياً</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">بانتظار GPS</span>`}
+            </td>
             <td class="p-3">
               <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-2.5 py-1 rounded-full text-xs font-bold ${p.present ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                 ${p.present ? 'موجود' : 'غير موجود'}
@@ -1532,6 +1589,7 @@
             <span class="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">استغاثة SOS</span>
             <h4 class="font-black text-rose-950 text-base mt-1">${s.pilgrimName}</h4>
             <p class="text-xs text-rose-800">${s.groupName} | جواز: ${s.passport}</p>
+            ${s.lat && s.lng ? `<p class="text-[11px] font-mono text-rose-700 mt-1">GPS: ${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}</p>` : ''}
           </div>
           <button type="button" onclick="dbDelete('sosAlerts', '${s.id}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">تمت الاستجابة</button>
         </div>
@@ -1553,16 +1611,37 @@
       showToast('تم إضافة الرحلة بنجاح', 'success');
     };
 
-    window.handleAddGroup = async function(e) {
+    // إضافة أو تعديل مجموعة مع منع تكرار الكود أو الاسم
+    window.handleSaveGroup = async function(e) {
       e.preventDefault();
-      await window.dbSave('groups', null, {
+      const editId = document.getElementById('editGroupId').value || null;
+      const code = document.getElementById('grpCode').value.trim().toUpperCase();
+      const name = document.getElementById('grpName').value.trim();
+
+      // التحقق من عدم تكرار كود المجموعة
+      const duplicateCode = window.appState.groups.some(g => g.id !== editId && g.code.trim().toUpperCase() === code);
+      if (duplicateCode) {
+        showToast(`عذراً، كود المجموعة (${code}) مستخدم بالفعل لمجموعة أخرى!`, 'error');
+        return;
+      }
+
+      // التحقق من عدم تكرار اسم المجموعة
+      const duplicateName = window.appState.groups.some(g => g.id !== editId && g.name.trim().toLowerCase() === name.toLowerCase());
+      if (duplicateName) {
+        showToast(`عذراً، اسم المجموعة (${name}) مسجل بالفعل! يرجى اختيار اسم آخر.`, 'error');
+        return;
+      }
+
+      const existing = editId ? window.appState.groups.find(g => g.id === editId) : null;
+
+      await window.dbSave('groups', editId, {
         tripId: document.getElementById('grpTripId').value,
-        code: document.getElementById('grpCode').value.trim().toUpperCase(),
-        name: document.getElementById('grpName').value.trim(),
+        code: code,
+        name: name,
         color: document.getElementById('grpColor').value,
         supName: document.getElementById('grpSupName').value.trim(),
         supCode: document.getElementById('grpSupCode').value.trim().toUpperCase(),
-        supPass: '1234',
+        supPass: existing ? existing.supPass : '1234',
         supPhone: document.getElementById('grpSupPhone').value.trim(),
         busNo: document.getElementById('grpBusNo').value.trim(),
         hotelMakkah: document.getElementById('grpHotelMakkah').value.trim(),
@@ -1570,10 +1649,54 @@
         campArafat: document.getElementById('grpCampArafat').value.trim(),
         campMina: document.getElementById('grpCampMina').value.trim()
       });
-      e.target.reset();
-      showToast('تم تكويد المجموعة بنجاح', 'success');
+
+      resetGroupForm();
+      showToast(editId ? 'تم تحديث بيانات المجموعة بنجاح' : 'تم تكويد المجموعة بنجاح', 'success');
     };
 
+    window.editGroup = function(id) {
+      const g = window.appState.groups.find(x => x.id === id);
+      if (!g) return;
+      document.getElementById('editGroupId').value = g.id;
+      document.getElementById('grpTripId').value = g.tripId;
+      document.getElementById('grpCode').value = g.code;
+      document.getElementById('grpName').value = g.name;
+      document.getElementById('grpColor').value = g.color || '#10B981';
+      document.getElementById('grpSupName').value = g.supName;
+      document.getElementById('grpSupCode').value = g.supCode;
+      document.getElementById('grpSupPhone').value = g.supPhone;
+      document.getElementById('grpBusNo').value = g.busNo;
+      document.getElementById('grpHotelMakkah').value = g.hotelMakkah;
+      document.getElementById('grpHotelMadinah').value = g.hotelMadinah;
+      document.getElementById('grpCampArafat').value = g.campArafat;
+      document.getElementById('grpCampMina').value = g.campMina;
+
+      document.getElementById('groupFormTitle').textContent = `تعديل بيانات المجموعة: ${g.name}`;
+      document.getElementById('saveGroupBtn').textContent = 'حفظ التعديلات';
+      document.getElementById('cancelEditGroupBtn').classList.remove('hidden');
+      document.getElementById('groupFormTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    window.resetGroupForm = function() {
+      document.getElementById('editGroupId').value = '';
+      document.getElementById('grpCode').value = '';
+      document.getElementById('grpName').value = '';
+      document.getElementById('grpColor').value = '#10B981';
+      document.getElementById('grpSupName').value = '';
+      document.getElementById('grpSupCode').value = '';
+      document.getElementById('grpSupPhone').value = '';
+      document.getElementById('grpBusNo').value = '';
+      document.getElementById('grpHotelMakkah').value = '';
+      document.getElementById('grpHotelMadinah').value = '';
+      document.getElementById('grpCampArafat').value = '';
+      document.getElementById('grpCampMina').value = '';
+
+      document.getElementById('groupFormTitle').textContent = 'تكويد مجموعة جديدة داخل رحلة';
+      document.getElementById('saveGroupBtn').textContent = 'حفظ المجموعة';
+      document.getElementById('cancelEditGroupBtn').classList.add('hidden');
+    };
+
+    // حفظ بيانات الحاج بدون أي إحداثيات GPS افتراضية
     window.handleSavePilgrim = async function(e) {
       e.preventDefault();
       const id = document.getElementById('editPilgrimId').value || null;
@@ -1588,8 +1711,8 @@
         madinahRoom: document.getElementById('pilgrimMadinahRoom').value.trim() || '-',
         health: document.getElementById('pilgrimHealth').value.trim() || 'سليم',
         present: existing ? existing.present : false,
-        lat: existing ? existing.lat : 21.4210 + (Math.random() - 0.5) * 0.005,
-        lng: existing ? existing.lng : 39.8250 + (Math.random() - 0.5) * 0.005
+        lat: existing ? existing.lat : null,
+        lng: existing ? existing.lng : null
       });
       resetPilgrimForm();
       showToast('تم حفظ بيانات الحاج بنجاح', 'success');
@@ -1669,8 +1792,8 @@
               madinahRoom: String(row['غرفة المدينة'] || '201'),
               health: row['الحالة الصحية'] || 'سليم',
               present: false,
-              lat: 21.4210 + (Math.random() - 0.5) * 0.005,
-              lng: 39.8250 + (Math.random() - 0.5) * 0.005
+              lat: null,
+              lng: null
             });
           }
           showToast(`تم استيراد ${json.length} حاج بنجاح`, 'success');
@@ -1764,6 +1887,7 @@
       setTimeout(() => {
         adminMapInstance.invalidateSize();
         renderAdminMapMarkers();
+        window.fitAdminMapToLivePilgrims(true);
       }, 200);
     }
 
@@ -1771,6 +1895,18 @@
       if (adminMapInstance) adminMapInstance.setView([lat, lng], zoom);
     };
 
+    window.fitAdminMapToLivePilgrims = function(silent = false) {
+      if (!adminMapInstance) return;
+      const livePilgrims = window.appState.pilgrims.filter(p => hasValidGps(p));
+      if (livePilgrims.length === 0) {
+        if (!silent) showToast('لا يوجد حجاج متصلون بالـ GPS الفعلي حالياً', 'info');
+        return;
+      }
+      const bounds = livePilgrims.map(p => [p.lat, p.lng]);
+      adminMapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    };
+
+    // عرض الحجاج أصحاب المواقع الفعلية فقط (بدون أي مواقع افتراضية)
     window.renderAdminMapMarkers = function() {
       if (!adminMarkersLayer) return;
       adminMarkersLayer.clearLayers();
@@ -1787,7 +1923,7 @@
         : window.appState.pilgrims.filter(p => p.groupId === filterGrp);
 
       filteredPilgrims.forEach(p => {
-        if (!p.lat || !p.lng) return;
+        if (!hasValidGps(p)) return;
         const grp = window.appState.groups.find(g => g.id === p.groupId);
         const icon = L.divIcon({
           className: '',
@@ -1795,35 +1931,9 @@
           iconSize: [32, 32]
         });
         L.marker([p.lat, p.lng], { icon }).addTo(adminMarkersLayer)
-          .bindPopup(`<b>${p.name}</b><br>${grp?.name || ''}<br>غرفة مكة: ${p.room}`);
-      });
-
-      window.appState.groups.forEach(g => {
-        if (filterGrp !== 'all' && g.id !== filterGrp) return;
-        const gPil = window.appState.pilgrims.find(p => p.groupId === g.id);
-        const lat = gPil ? gPil.lat + 0.001 : 21.4220;
-        const lng = gPil ? gPil.lng + 0.001 : 39.8255;
-        const busIcon = L.divIcon({
-          className: '',
-          html: `<div class="custom-pin w-9 h-9 text-sm" style="background:#0B192C; border-color:#D4AF37;"><i class="fa-solid fa-bus text-amber-400"></i></div>`,
-          iconSize: [36, 36]
-        });
-        L.marker([lat, lng], { icon: busIcon }).addTo(adminMarkersLayer)
-          .bindPopup(`<b>${g.busNo}</b><br>${g.name}<br>المشرف: ${g.supName}`);
+          .bindPopup(`<b>${p.name}</b><br>${grp?.name || ''}<br>غرفة مكة: ${p.room}<br><span style="color:#059669;font-size:11px;">GPS فعلي مباشر</span>`);
       });
     };
-
-    window.simulateBusMovement = async function() {
-      for (const p of window.appState.pilgrims) {
-        await window.dbSave('pilgrims', p.id, {
-          lat: (p.lat || 21.4215) + (Math.random() - 0.5) * 0.003,
-          lng: (p.lng || 39.8250) + (Math.random() - 0.5) * 0.003
-        });
-      }
-      showToast('تم تحديث مواقع الحجاج والباصات على الخريطة', 'info');
-    };
-
-    window.simulateMovement = window.simulateBusMovement;
 
     function initLocationPickerMap() {
       const container = document.getElementById('locationPickerMap');
@@ -1860,6 +1970,21 @@
         pickerCircle.setRadius(Number(document.getElementById('locRadius').value) || 500);
       }
     }
+
+    window.useMyCurrentLocationOnPicker = function() {
+      if (!('geolocation' in navigator)) {
+        showToast('المتصفح لا يدعم تحديد الموقع', 'error');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          window.focusPickerMap(pos.coords.latitude, pos.coords.longitude, 16);
+          showToast('تم تحديد موقعك الفعلي الحالي على الخريطة', 'success');
+        },
+        () => showToast('تعذر الوصول لموقعك الحالي، تأكد من تفعيل GPS', 'error'),
+        { enableHighAccuracy: true }
+      );
+    };
 
     window.focusPickerMap = function(lat, lng, zoom) {
       if (pickerMapInstance) {
@@ -1909,6 +2034,9 @@
           <div>
             <h4 class="font-bold text-dahab-navy text-sm">${p.name}</h4>
             <span class="text-xs text-slate-500">جواز: ${p.passport} | غرفة مكة: ${p.room}</span>
+            <span class="block text-[11px] mt-0.5 ${hasValidGps(p) ? 'text-emerald-700 font-bold' : 'text-slate-400'}">
+              ${hasValidGps(p) ? '● GPS فعلي متصل' : '○ بانتظار اتصال GPS'}
+            </span>
           </div>
           <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-3.5 py-2 rounded-xl text-xs font-black shadow-sm transition ${p.present ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}">
             ${p.present ? 'موجود بالباص' : 'غير موجود'}
@@ -1937,11 +2065,10 @@
       if (!supMarkersLayer || !window.appState.currentEntity) return;
       supMarkersLayer.clearLayers();
       const grp = window.appState.currentEntity;
-      const myPilgrims = window.appState.pilgrims.filter(p => p.groupId === grp.id);
+      const myPilgrims = window.appState.pilgrims.filter(p => p.groupId === grp.id && hasValidGps(p));
       const bounds = [];
 
       myPilgrims.forEach(p => {
-        if (!p.lat || !p.lng) return;
         bounds.push([p.lat, p.lng]);
         const icon = L.divIcon({
           className: '',
@@ -1980,8 +2107,8 @@
         pilgrimName: pil.name,
         groupName: grp?.name || 'مجموعة الحاج',
         passport: pil.passport,
-        lat: pil.lat || 21.4225,
-        lng: pil.lng || 39.8262,
+        lat: pil.lat || null,
+        lng: pil.lng || null,
         time: 'الآن'
       });
       showToast('تم إرسال نداء استغاثة عاجل مع موقعك للإدارة والمشرف!', 'error');
@@ -2002,7 +2129,7 @@
   </script>
 
   <!-- ===================================================================== -->
-  <!-- المزامنة السحابية عبر Firebase (ضع بيانات مشروعك هنا للنشر الفعلي)    -->
+  <!-- المزامنة السحابية عبر Firebase                                        -->
   <!-- ===================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -2012,15 +2139,7 @@
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
 
     // استبدل null بكود firebaseConfig الخاص بمشروعك من Firebase Console عند النشر
-    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
-  apiKey: "AIzaSyAMuBjjJ3JCVFC9XYbJWJKZ-mf6nI6I-Qc",
-  authDomain: "dahab-tours.firebaseapp.com",
-  projectId: "dahab-tours",
-  storageBucket: "dahab-tours.firebasestorage.app",
-  messagingSenderId: "732016068774",
-  appId: "1:732016068774:web:33560cb9a6386074becc67",
-  measurementId: "G-PQLQ6ECZFR"
-};;
+    const CUSTOM_FIREBASE_CONFIG = null;
 
     const firebaseConfig = typeof __firebase_config !== 'undefined'
       ? JSON.parse(__firebase_config)
@@ -2085,5 +2204,3 @@
 </body>
 </html>
 ```
-
-تم تجهيز المتغير `CUSTOM_FIREBASE_CONFIG` في آخر ملف `index.html` ليسهل عليك لصق إعدادات مشروعك من Firebase مباشرة، ثم رفع الملف على **Netlify Drop** أو **GitHub Pages** كما هو موضح في دليل النشر.
