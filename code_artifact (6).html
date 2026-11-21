@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شركة دهب للسياحة | نظام إدارة وتتبع الحجاج والمعتمرين</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- QR Code Generator & Scanner -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  
+  <!-- SheetJS (XLSX) for Excel Import/Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            dahab: {
+              navy: '#0B192C',
+              blue: '#1E3E62',
+              gold: '#D4AF37',
+              goldDark: '#AA820A',
+              sand: '#FBF9F4'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #F4F6F9;
+      overflow-x: hidden;
+    }
+    .navy-gradient {
+      background: linear-gradient(135deg, #0B192C 0%, #1E3E62 100%);
+    }
+    .gold-gradient {
+      background: linear-gradient(135deg, #E5C158 0%, #C59B27 100%);
+    }
+    .custom-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      color: white;
+      border: 2px solid white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    #adminMap, #supervisorMap {
+      width: 100%;
+      height: 480px;
+      border-radius: 1rem;
+      z-index: 10;
+    }
+    #locationPickerMap {
+      width: 100%;
+      height: 300px;
+      border-radius: 1rem;
+      z-index: 10;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printableQrArea, #printableQrArea * {
+        visibility: visible;
+      }
+      #printableQrArea {
+        position: fixed;
+        inset: 0;
+        background: white;
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+  <!-- إشعارات النظام العائمة (Toast) -->
+  <div id="toastContainer" class="fixed top-4 left-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- 1. شاشة تسجيل الدخول الموحدة (حاج / مشرف / إدارة)                    -->
+  <!-- ===================================================================== -->
+  <div id="loginScreen" class="min-h-screen navy-gradient flex items-center justify-center p-4 relative overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-dahab-gold/40 z-10">
+      <div class="navy-gradient p-7 text-center text-white border-b-4 border-dahab-gold">
+        <div class="w-16 h-16 mx-auto bg-white/10 rounded-2xl flex items-center justify-center mb-3 border border-dahab-gold/50">
+          <i class="fa-solid fa-kaaba text-3xl text-dahab-gold"></i>
+        </div>
+        <h1 class="text-2xl font-black">شركة دهب للسياحة</h1>
+        <p class="text-amber-200 text-xs mt-1">المنظومة الذكية لإدارة وتتبع الحجاج والمعتمرين</p>
+        <div id="dbConnectionBadge" class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-white/10 text-emerald-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>النظام جاهز للعمل الفوري</span>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <!-- أزرار اختيار نوع الحساب -->
+        <div class="grid grid-cols-3 gap-1.5 bg-slate-100 p-1.5 rounded-xl mb-5">
+          <button type="button" id="loginTab-pilgrim" onclick="switchLoginRole('pilgrim')" class="py-2.5 rounded-lg text-xs font-extrabold bg-dahab-navy text-white shadow transition">
+            <i class="fa-solid fa-user ml-1"></i>حاج / معتمر
+          </button>
+          <button type="button" id="loginTab-supervisor" onclick="switchLoginRole('supervisor')" class="py-2.5 rounded-lg text-xs font-extrabold text-slate-600 transition">
+            <i class="fa-solid fa-user-tie ml-1"></i>مشرف
+          </button>
+          <button type="button" id="loginTab-admin" onclick="switchLoginRole('admin')" class="py-2.5 rounded-lg text-xs font-extrabold text-slate-600 transition">
+            <i class="fa-solid fa-shield-halved ml-1"></i>الإدارة
+          </button>
+        </div>
+
+        <!-- نموذج دخول الحاج -->
+        <form id="loginForm-pilgrim" onsubmit="handleLogin(event, 'pilgrim')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">رقم جواز السفر</label>
+            <input type="text" id="pilgrimPassportInput" required placeholder="مثال: A102030" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
+            <i class="fa-solid fa-location-crosshairs text-amber-600 text-base"></i>
+            <span>سيتم تفعيل التتبع المباشر GPS والإشعارات لسلامتك طوال الرحلة.</span>
+          </div>
+          <button type="submit" class="w-full gold-gradient text-dahab-navy font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
+            دخول بوابة الحاج
+          </button>
+        </form>
+
+        <!-- نموذج دخول المشرف -->
+        <form id="loginForm-supervisor" onsubmit="handleLogin(event, 'supervisor')" class="space-y-4 hidden">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">كود المشرف أو رقم الجوال</label>
+            <input type="text" id="supervisorCodeInput" required placeholder="مثال: SUP-01 أو 0501112233" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور</label>
+            <input type="password" id="supervisorPassInput" required value="1234" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none text-left" dir="ltr">
+          </div>
+          <button type="submit" class="w-full navy-gradient text-white font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
+            دخول بوابة المشرف
+          </button>
+        </form>
+
+        <!-- نموذج دخول الإدارة -->
+        <form id="loginForm-admin" onsubmit="handleLogin(event, 'admin')" class="space-y-4 hidden">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم</label>
+            <input type="text" id="adminUserInput" required value="admin" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono text-left" dir="ltr">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور</label>
+            <input type="password" id="adminPassInput" required value="dahab2026" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono text-left" dir="ltr">
+          </div>
+          <button type="submit" class="w-full navy-gradient text-dahab-gold font-black py-3.5 rounded-xl shadow-lg border border-dahab-gold/40 hover:opacity-95 transition">
+            دخول غرفة عمليات الإدارة
+          </button>
+        </form>
+
+        <!-- أزرار الدخول السريع للتجربة -->
+        <div class="mt-6 pt-4 border-t border-slate-100">
+          <p class="text-[11px] font-bold text-slate-400 text-center mb-2">دخول تجريبي سريع بضغطة واحدة:</p>
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <button type="button" onclick="quickDemoLogin('pilgrim')" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border border-amber-200 transition">
+              حاج (A102030)
+            </button>
+            <button type="button" onclick="quickDemoLogin('supervisor')" class="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold border border-blue-200 transition">
+              مشرف (SUP-01)
+            </button>
+            <button type="button" onclick="quickDemoLogin('admin')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold border border-slate-300 transition">
+              الإدارة (Admin)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. بوابة الإدارة المركزية (ADMIN DASHBOARD)                           -->
+  <!-- ===================================================================== -->
+  <div id="adminApp" class="hidden min-h-screen flex-col lg:flex-row bg-slate-100">
+    <!-- القائمة الجانبية -->
+    <aside class="w-full lg:w-72 navy-gradient text-white flex-shrink-0 flex flex-col justify-between shadow-xl z-30">
+      <div>
+        <div class="p-5 border-b border-white/10 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl gold-gradient text-dahab-navy flex items-center justify-center shadow">
+              <i class="fa-solid fa-kaaba text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-black text-base leading-tight">دهب للسياحة</h2>
+              <span class="text-[11px] text-dahab-gold font-bold">غرفة العمليات المركزية</span>
+            </div>
+          </div>
+          <button type="button" onclick="document.getElementById('adminNavMenu').classList.toggle('hidden')" class="lg:hidden p-2 rounded-lg bg-white/10">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+        </div>
+
+        <nav id="adminNavMenu" class="hidden lg:flex flex-col p-3 space-y-1">
+          <button type="button" onclick="switchAdminSection('dashboard')" data-sec="dashboard" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-dahab-gold text-dahab-navy">
+            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+            <span>التحليلات والإحصائيات الذكية</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('map')" data-sec="map" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-map-location-dot w-5 text-center"></i>
+            <span>الخريطة الحية وتتبع الباصات</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('trips')" data-sec="trips" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-plane-departure w-5 text-center"></i>
+            <span>الرحلات والمجموعات</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('pilgrims')" data-sec="pilgrims" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-users w-5 text-center"></i>
+            <span>إدارة الحجاج (Excel)</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('qr')" data-sec="qr" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-qrcode w-5 text-center"></i>
+            <span>الباركود وتحضير الباص</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('program')" data-sec="program" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-calendar-days w-5 text-center"></i>
+            <span>البرنامج اليومي والتحركات</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('locations')" data-sec="locations" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-hotel w-5 text-center"></i>
+            <span>مواقع الفنادق ونطاق الأمان</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('notifications')" data-sec="notifications" class="admin-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10">
+            <i class="fa-solid fa-bell w-5 text-center"></i>
+            <span>إرسال الإشعارات والتعليمات</span>
+          </button>
+          <button type="button" onclick="switchAdminSection('sos')" data-sec="sos" class="admin-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-rose-300 hover:bg-rose-500/20">
+            <span class="flex items-center gap-3"><i class="fa-solid fa-triangle-exclamation w-5 text-center"></i><span>بلاغات الطوارئ SOS</span></span>
+            <span id="adminSosBadge" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 border-t border-white/10">
+        <button type="button" onclick="logout()" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- محتوى الإدارة -->
+    <main class="flex-1 flex flex-col min-w-0">
+      <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+        <div>
+          <h1 id="adminSectionTitle" class="text-lg font-black text-dahab-navy">التحليلات والإحصائيات الذكية</h1>
+          <p class="text-xs text-slate-500">مزامنة لحظية مباشرة مع المشرفين والحجاج في الميدان</p>
+        </div>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>بث حي</span>
+        </span>
+      </header>
+
+      <div class="p-4 sm:p-6 space-y-6 flex-1 overflow-y-auto">
+        
+        <!-- القسم 1: التحليلات والإحصائيات الذكية -->
+        <section id="sec-dashboard" class="admin-section space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-500">إجمالي الحجاج</span>
+                <h3 id="statTotalPilgrims" class="text-3xl font-black text-dahab-navy mt-1">0</h3>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-users"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-500">حضور الباصات الحالي</span>
+                <h3 id="statBusPresent" class="text-3xl font-black text-emerald-600 mt-1">0%</h3>
+                <span id="statBusSub" class="text-[11px] text-slate-400">0 من 0 حاج</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl"><i class="fa-solid fa-bus"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-500">داخل نطاق الأمان</span>
+                <h3 id="statSafeZone" class="text-3xl font-black text-dahab-goldDark mt-1">0%</h3>
+                <span id="statOutsideCount" class="text-[11px] text-rose-600 font-bold">0 خارج النطاق</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl"><i class="fa-solid fa-shield-halved"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-500">بلاغات الطوارئ</span>
+                <h3 id="statSosCount" class="text-3xl font-black text-rose-600 mt-1">0</h3>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl"><i class="fa-solid fa-kit-medical"></i></div>
+            </div>
+          </div>
+
+          <!-- محرك التحليل الذكي والمقترحات -->
+          <div class="navy-gradient text-white rounded-2xl p-5 shadow-lg border border-dahab-gold/30">
+            <h3 class="font-black text-base mb-3 flex items-center gap-2 text-dahab-gold">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>التحليل الذكي والمقترحات الفورية لغرفة العمليات</span>
+            </h3>
+            <div id="smartInsightsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+
+          <!-- نسبة اكتمال كل مجموعة -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+              <h3 class="font-bold text-dahab-navy mb-4">نسبة اكتمال المجموعات في الباصات</h3>
+              <div id="groupCompletionList" class="space-y-4"></div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+              <h3 class="font-bold text-dahab-navy mb-4">تحليل تواجد الحجاج داخل الفنادق ونطاقات الأمان</h3>
+              <div id="locationPresenceList" class="space-y-3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- القسم 2: الخريطة الحية -->
+        <section id="sec-map" class="admin-section hidden space-y-4">
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="adminMapGroupFilter" onchange="renderAdminMapMarkers()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold">
+                <option value="all">جميع المجموعات</option>
+              </select>
+              <button type="button" onclick="panAdminMap(21.4225, 39.8262, 15)" class="px-3 py-2 rounded-xl bg-dahab-navy text-white text-xs font-bold">مكة المكرمة</button>
+              <button type="button" onclick="panAdminMap(21.4133, 39.8933, 15)" class="px-3 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold">مشعر منى</button>
+              <button type="button" onclick="panAdminMap(21.3549, 39.9841, 15)" class="px-3 py-2 rounded-xl bg-emerald-700 text-white text-xs font-bold">مشعر عرفات</button>
+              <button type="button" onclick="panAdminMap(24.4672, 39.6111, 15)" class="px-3 py-2 rounded-xl bg-blue-700 text-white text-xs font-bold">المدينة المنورة</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="toggleMapStyle('admin')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300">
+                <i class="fa-solid fa-satellite ml-1 text-dahab-goldDark"></i> تبديل (خريطة / قمر صناعي)
+              </button>
+              <button type="button" onclick="simulateMovement()" class="px-4 py-2 rounded-xl gold-gradient text-dahab-navy text-xs font-black shadow">
+                <i class="fa-solid fa-bus ml-1"></i> محاكاة تحرك الحجاج والباصات
+              </button>
+            </div>
+          </div>
+          <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+            <div id="adminMap"></div>
+          </div>
+        </section>
+
+        <!-- القسم 3: الرحلات والمجموعات -->
+        <section id="sec-trips" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-dahab-navy mb-4">إضافة رحلة حج / عمرة</h3>
+            <form onsubmit="handleAddTrip(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
+              <input type="text" id="tripCode" required placeholder="كود الرحلة (HAJ-1447)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <select id="tripType" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
+                <option value="حج سياحي">حج سياحي</option>
+                <option value="حج اقتصادي">حج اقتصادي</option>
+                <option value="عمرة">عمرة</option>
+              </select>
+              <input type="text" id="tripYear" required value="1447 هـ" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <button type="submit" class="py-2.5 px-4 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">إضافة الرحلة</button>
+            </form>
+            <div id="tripsList" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-dahab-navy mb-4">تكويد مجموعة جديدة داخل رحلة</h3>
+            <form onsubmit="handleAddGroup(event)" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+              <select id="grpTripId" required class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></select>
+              <input type="text" id="grpCode" required placeholder="كود المجموعة (GRP-C1)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpName" required placeholder="اسم المجموعة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300">
+                <span class="text-xs font-bold">اللون:</span>
+                <input type="color" id="grpColor" value="#10B981" class="w-10 h-7 cursor-pointer">
+              </div>
+              <input type="text" id="grpSupName" required placeholder="اسم المشرف" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpSupCode" required placeholder="كود المشرف (SUP-03)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpSupPhone" required placeholder="تليفون المشرف" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpBusNo" required placeholder="رقم الباص (باص 303)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpHotelMakkah" required placeholder="فندق مكة المكرمة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpHotelMadinah" required placeholder="فندق المدينة المنورة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpCampArafat" required placeholder="مخيم عرفات" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="grpCampMina" required placeholder="مخيم منى" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <button type="submit" class="sm:col-span-3 lg:col-span-4 py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">حفظ المجموعة</button>
+            </form>
+            <div id="groupsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+        </section>
+
+        <!-- القسم 4: إدارة الحجاج (Excel) -->
+        <section id="sec-pilgrims" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 class="font-bold text-dahab-navy">إضافة / تعديل بيانات الحاج</h3>
+              <div class="flex gap-2">
+                <button type="button" onclick="exportPilgrimsExcel()" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-excel"></i><span>تصدير Excel</span>
+                </button>
+                <label class="px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 cursor-pointer flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-import"></i><span>استيراد Excel</span>
+                  <input type="file" accept=".xlsx,.xls,.csv" onchange="importPilgrimsExcel(event)" class="hidden">
+                </label>
+              </div>
+            </div>
+
+            <form onsubmit="handleSavePilgrim(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <input type="hidden" id="editPilgrimId">
+              <input type="text" id="pilgrimName" required placeholder="اسم الحاج بالكامل" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="number" id="pilgrimAge" required placeholder="السن" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <select id="pilgrimGroupId" required class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></select>
+              <input type="text" id="pilgrimPassport" required placeholder="رقم جواز السفر" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-mono">
+              <input type="text" id="pilgrimHotel" placeholder="الفندق المخصص" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="pilgrimRoom" required placeholder="رقم غرفة مكة (مثال: 405)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="pilgrimMadinahRoom" placeholder="رقم غرفة المدينة (مثال: 302)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="pilgrimHealth" placeholder="الحالة الصحية (سليم / سكري)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <div class="sm:col-span-2 lg:col-span-4 flex gap-2">
+                <button type="submit" class="flex-1 py-2.5 px-4 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">حفظ بيانات الحاج</button>
+                <button type="button" onclick="resetPilgrimForm()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">إلغاء</button>
+              </div>
+            </form>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-right text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs font-bold border-b">
+                  <tr>
+                    <th class="p-3">الاسم</th>
+                    <th class="p-3">الجواز</th>
+                    <th class="p-3">المجموعة</th>
+                    <th class="p-3">الفندق والغرف</th>
+                    <th class="p-3">الحالة الصحية</th>
+                    <th class="p-3">حضور الباص</th>
+                    <th class="p-3">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="pilgrimsTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- القسم 5: الباركود وتحضير الباص -->
+        <section id="sec-qr" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-dahab-navy mb-4">إنشاء باركود تحضير الباص (مع إمكانية الطباعة)</h3>
+            <form onsubmit="handleCreateQr(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <input type="text" id="qrTitle" required placeholder="عنوان التحرك (صعود باص 101)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <select id="qrGroupId" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
+                <option value="all">جميع المجموعات</option>
+              </select>
+              <button type="submit" class="py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">إنشاء الباركود</button>
+            </form>
+            <div id="qrCodesList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </div>
+        </section>
+
+        <!-- القسم 6: البرنامج اليومي -->
+        <section id="sec-program" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-dahab-navy mb-4">إضافة فعالية في البرنامج اليومي (تظهر فوراً للحجاج)</h3>
+            <form onsubmit="handleAddProgram(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <input type="text" id="progDay" required placeholder="اليوم (مثال: 8 ذو الحجة)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="progTime" required placeholder="الساعة (مثال: 07:00 صباحاً)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="progTitle" required placeholder="عنوان التحرك" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <input type="text" id="progDetails" required placeholder="التفاصيل والتعليمات للحجاج" class="sm:col-span-2 px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <button type="submit" class="py-2.5 px-4 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">نشر في البرنامج</button>
+            </form>
+            <div id="adminProgramsList" class="space-y-3"></div>
+          </div>
+        </section>
+
+        <!-- القسم 7: مواقع الفنادق ونطاق الأمان (اختيار من الخريطة) -->
+        <section id="sec-locations" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <i class="fa-solid fa-map-pin text-dahab-gold"></i>
+              <span>إضافة لوكيشن الفنادق والمخيمات ونطاق الأمان (اختر من الخريطة)</span>
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">اضغط على أي نقطة في الخريطة بالأسفل لتحديد موقع الفندق أو المخيم تلقائياً، أو اسحب الدبوس لضبط الإحداثيات بدقة.</p>
+            
+            <div class="mb-4 relative border border-slate-200 rounded-2xl overflow-hidden shadow-inner">
+              <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span class="font-bold text-dahab-navy"><i class="fa-solid fa-hand-pointer text-dahab-gold ml-1"></i>انقر على الخريطة لتحديد الموقع</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" onclick="toggleMapStyle('picker')" class="px-2.5 py-1 rounded-lg bg-dahab-navy text-dahab-gold font-bold hover:opacity-90">
+                    <i class="fa-solid fa-satellite ml-1"></i>قمر صناعي
+                  </button>
+                  <button type="button" onclick="focusPickerMap(21.4225, 39.8262, 15)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-bold hover:bg-slate-100">مكة</button>
+                  <button type="button" onclick="focusPickerMap(24.4672, 39.6111, 15)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-bold hover:bg-slate-100">المدينة</button>
+                  <button type="button" onclick="focusPickerMap(21.3549, 39.9841, 15)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-bold hover:bg-slate-100">عرفات</button>
+                  <button type="button" onclick="focusPickerMap(21.4133, 39.8933, 15)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-bold hover:bg-slate-100">منى</button>
+                </div>
+              </div>
+              <div id="locationPickerMap"></div>
+            </div>
+
+            <form onsubmit="handleAddLocation(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-6">
+              <input type="text" id="locName" required placeholder="اسم الموقع (فندق الصفوة)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <select id="locType" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold">
+                <option value="hotel">فندق</option>
+                <option value="camp">مخيم مشاعر</option>
+                <option value="gathering">نقطة تجمع باص</option>
+              </select>
+              <input type="number" step="any" id="locLat" required readonly placeholder="خط العرض" class="px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-mono" dir="ltr">
+              <input type="number" step="any" id="locLng" required readonly placeholder="خط الطول" class="px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-mono" dir="ltr">
+              <input type="number" id="locRadius" oninput="updatePickerCircleRadius()" required value="500" placeholder="نطاق الأمان بالمتر (500)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <button type="submit" class="sm:col-span-5 py-2.5 px-4 rounded-xl navy-gradient text-white font-bold text-sm shadow">حفظ الموقع وتفعيل نطاق الأمان</button>
+            </form>
+            <div id="locationsList" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+          </div>
+        </section>
+
+        <!-- القسم 8: إرسال الإشعارات -->
+        <section id="sec-notifications" class="admin-section hidden space-y-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <h3 class="font-bold text-dahab-navy mb-4">إرسال إشعارات وتعليمات للحجاج</h3>
+            <form onsubmit="handleSendNotification(event, 'إدارة دهب للسياحة')" class="space-y-3 mb-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <select id="notifTargetGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
+                  <option value="all">إرسال للجميع</option>
+                </select>
+                <select id="notifPriority" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
+                  <option value="normal">تعليمات عامة</option>
+                  <option value="urgent">تنبيه عاجل</option>
+                </select>
+              </div>
+              <input type="text" id="notifTitle" required placeholder="عنوان الإشعار" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+              <textarea id="notifMessage" rows="3" required placeholder="نص الرسالة..." class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"></textarea>
+              <button type="submit" class="py-2.5 px-6 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">إرسال الإشعار الآن</button>
+            </form>
+            <div id="adminNotificationsList" class="space-y-2.5"></div>
+          </div>
+        </section>
+
+        <!-- القسم 9: الطوارئ SOS -->
+        <section id="sec-sos" class="admin-section hidden space-y-4">
+          <div id="adminSosList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 3. بوابة المشرف (SUPERVISOR VIEW)                                     -->
+  <!-- ===================================================================== -->
+  <div id="supervisorApp" class="hidden min-h-screen flex-col bg-slate-100">
+    <header class="navy-gradient text-white px-5 py-4 border-b-4 border-dahab-gold sticky top-0 z-30 shadow-md">
+      <div class="max-w-6xl mx-auto flex items-center justify-between">
+        <div>
+          <span id="supGroupBadge" class="px-2.5 py-0.5 rounded-full text-xs font-black bg-dahab-gold text-dahab-navy">المجموعة</span>
+          <h1 id="supWelcomeTitle" class="text-lg font-black mt-1">لوحة المشرف</h1>
+          <p id="supBusInfo" class="text-xs text-slate-300">الباص</p>
+        </div>
+        <button type="button" onclick="logout()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-rose-600 text-xs font-bold transition">
+          <i class="fa-solid fa-right-from-bracket ml-1"></i>خروج
+        </button>
+      </div>
+    </header>
+
+    <div class="bg-white border-b border-slate-200 px-4 py-2 sticky top-[82px] z-20">
+      <div class="max-w-6xl mx-auto flex gap-2">
+        <button type="button" id="supTab-attendance" onclick="switchSupTab('attendance')" class="px-4 py-2 rounded-xl text-xs font-bold bg-dahab-navy text-white">كشف تحضير الباص</button>
+        <button type="button" id="supTab-map" onclick="switchSupTab('map')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">خريطة حجاج مجموعتي</button>
+        <button type="button" id="supTab-notify" onclick="switchSupTab('notify')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">إرسال تنبيه للمجموعة</button>
+      </div>
+    </div>
+
+    <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-5 flex-1">
+      <!-- عدادات الحضور -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-sm">
+          <span class="text-xs text-slate-500 font-bold block">إجمالي المجموعة</span>
+          <span id="supTotalCount" class="text-2xl font-black text-dahab-navy">0</span>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 text-center shadow-sm">
+          <span class="text-xs text-emerald-700 font-bold block">موجود بالباص</span>
+          <span id="supPresentCount" class="text-2xl font-black text-emerald-600">0</span>
+        </div>
+        <div class="bg-rose-50 p-4 rounded-2xl border border-rose-200 text-center shadow-sm">
+          <span class="text-xs text-rose-700 font-bold block">غير موجود</span>
+          <span id="supAbsentCount" class="text-2xl font-black text-rose-600">0</span>
+        </div>
+      </div>
+
+      <!-- تبويب 1: كشف التحضير -->
+      <section id="supSec-attendance" class="sup-section bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 class="font-bold text-dahab-navy mb-3">كشف تحضير الحجاج (التعديل يسمّع فوراً عند الإدارة)</h3>
+        <div id="supPilgrimsList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </section>
+
+      <!-- تبويب 2: خريطة حجاج المجموعة -->
+      <section id="supSec-map" class="sup-section hidden bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-xs font-bold text-dahab-navy"><i class="fa-solid fa-location-dot text-dahab-gold ml-1"></i>مواقع حجاج مجموعتي المباشرة</span>
+          <button type="button" onclick="toggleMapStyle('sup')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300">
+            <i class="fa-solid fa-satellite ml-1 text-dahab-goldDark"></i> تبديل (خريطة / قمر صناعي)
+          </button>
+        </div>
+        <div id="supervisorMap"></div>
+      </section>
+
+      <!-- تبويب 3: إرسال تنبيه للمجموعة -->
+      <section id="supSec-notify" class="sup-section hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 class="font-bold text-dahab-navy mb-3">إرسال تعليمات لحجاج مجموعتي</h3>
+        <form onsubmit="handleSupSendNotif(event)" class="space-y-3">
+          <input type="text" id="supNotifTitle" required placeholder="عنوان التنبيه" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+          <textarea id="supNotifMsg" rows="3" required placeholder="نص التعليمات..." class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"></textarea>
+          <button type="submit" class="py-2.5 px-6 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">إرسال الآن</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 4. بوابة الحاج / المعتمر (PILGRIM VIEW)                               -->
+  <!-- ===================================================================== -->
+  <div id="pilgrimApp" class="hidden min-h-screen flex-col bg-slate-100 pb-20">
+    <!-- شريط حالة GPS والإشعارات -->
+    <div class="bg-emerald-900 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-40">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span id="pilGpsBadge" class="font-bold">GPS نشط ومتصل بالإدارة</span>
+      </div>
+      <span class="text-amber-300 font-bold"><i class="fa-solid fa-bell ml-1"></i>الإشعارات مفعلة</span>
+    </div>
+
+    <header class="navy-gradient text-white p-5 rounded-b-3xl shadow-lg border-b-4 border-dahab-gold">
+      <div class="max-w-lg mx-auto flex items-center justify-between">
+        <div>
+          <span class="text-xs text-dahab-gold font-bold">ضيوف الرحمن - شركة دهب للسياحة</span>
+          <h1 id="pilHeaderName" class="text-xl font-black mt-0.5">الحاج الكريم</h1>
+          <span id="pilHeaderPassport" class="text-xs text-slate-300 font-mono">---</span>
+        </div>
+        <button type="button" onclick="logout()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-rose-600 text-xs font-bold">خروج</button>
+      </div>
+    </header>
+
+    <main class="max-w-lg w-full mx-auto p-4 space-y-5 flex-1">
+      <!-- أزرار الطوارئ والباركود -->
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" onclick="sendPilgrimSos()" class="bg-rose-600 hover:bg-rose-700 text-white p-4 rounded-2xl shadow-lg flex flex-col items-center text-center border-2 border-rose-400">
+          <i class="fa-solid fa-kit-medical text-2xl mb-1.5 animate-bounce"></i>
+          <span class="font-black text-sm">طوارئ SOS</span>
+          <span class="text-[11px] text-rose-100">إرسال موقعي فوراً</span>
+        </button>
+
+        <button type="button" onclick="openQrCheckinBox()" class="gold-gradient text-dahab-navy p-4 rounded-2xl shadow-lg flex flex-col items-center text-center border-2 border-amber-200">
+          <i class="fa-solid fa-camera text-2xl mb-1.5"></i>
+          <span class="font-black text-sm">مسح باركود الباص</span>
+          <span id="pilAttendanceStatus" class="text-[11px] font-bold bg-white/60 px-2 py-0.5 rounded-full mt-0.5">اضغط لفتح الكاميرا</span>
+        </button>
+      </div>
+
+      <!-- شريط التنقل بين أقسام الحاج الـ 3 -->
+      <div class="grid grid-cols-3 gap-1.5 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200">
+        <button type="button" id="pilTabBtn-card" onclick="switchPilgrimTab('card')" class="py-2.5 px-2 rounded-xl text-xs font-extrabold bg-dahab-navy text-white transition">
+          <i class="fa-solid fa-id-card block sm:inline ml-1"></i>بطاقتي
+        </button>
+        <button type="button" id="pilTabBtn-schedule" onclick="switchPilgrimTab('schedule')" class="py-2.5 px-2 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 transition">
+          <i class="fa-solid fa-calendar-days block sm:inline ml-1"></i>البرنامج
+        </button>
+        <button type="button" id="pilTabBtn-manasik" onclick="switchPilgrimTab('manasik')" class="py-2.5 px-2 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 transition">
+          <i class="fa-solid fa-kaaba block sm:inline ml-1"></i>المناسك
+        </button>
+      </div>
+
+      <!-- مربع مسح باركود تحضير الباص بالكاميرا -->
+      <div id="pilQrBox" class="hidden bg-white p-4 rounded-2xl border-2 border-dahab-gold shadow-lg space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-dahab-navy text-sm flex items-center gap-2">
+            <i class="fa-solid fa-qrcode text-dahab-gold"></i>
+            <span>وجه الكاميرا نحو باركود الباص</span>
+          </h4>
+          <button type="button" onclick="closeQrCheckinBox()" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:text-rose-600 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- حاوية كاميرا مسح الباركود -->
+        <div id="qrReaderContainer" class="rounded-xl overflow-hidden bg-slate-900 min-h-[220px] flex items-center justify-center"></div>
+        <p id="qrCameraStatusMsg" class="text-center text-xs font-bold text-emerald-700">جاري تشغيل الكاميرا لمسح الباركود...</p>
+
+        <!-- بديل الإدخال اليدوي في حال عدم توفر كاميرا -->
+        <details class="pt-2 border-t border-slate-100">
+          <summary class="text-[11px] font-bold text-slate-500 cursor-pointer select-none">إدخال الكود يدوياً (في حال تعذر فتح الكاميرا)</summary>
+          <div class="flex gap-2 mt-2">
+            <input type="text" id="manualQrCodeInput" placeholder="مثال: DAHAB-BUS-101" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono" dir="ltr">
+            <button type="button" onclick="submitManualQrCode()" class="px-4 py-2 rounded-xl navy-gradient text-dahab-gold text-xs font-bold">تأكيد</button>
+          </div>
+        </details>
+      </div>
+
+      <!-- القسم 1: بطاقة الحاج الرقمية والإشعارات -->
+      <div id="pilSection-card" class="pil-tab-section space-y-4">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div>
+              <span class="text-[11px] text-slate-400 block">المجموعة</span>
+              <span id="pilGroupName" class="font-black text-dahab-navy text-base">--</span>
+            </div>
+            <span id="pilBusNumber" class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-extrabold">--</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-2xl border border-slate-100 mb-4">
+            <div>
+              <span class="text-slate-400 block">فندق مكة المكرمة</span>
+              <span id="pilHotelMakkah" class="font-bold text-slate-800">--</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">رقم غرفة مكة</span>
+              <span id="pilRoomNumber" class="font-bold text-dahab-navy text-sm">--</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">فندق المدينة المنورة</span>
+              <span id="pilHotelMadinah" class="font-bold text-slate-800">--</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">رقم غرفة المدينة</span>
+              <span id="pilMadinahRoomNumber" class="font-bold text-dahab-navy text-sm">--</span>
+            </div>
+            <div class="col-span-2 pt-1 border-t border-slate-200/70">
+              <span class="text-slate-400 block">مخيم عرفات / منى</span>
+              <span id="pilCampsText" class="font-bold text-slate-800">--</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between bg-emerald-50 p-3 rounded-2xl border border-emerald-200">
+            <div>
+              <span class="text-[11px] text-emerald-700 block">مشرف المجموعة</span>
+              <span id="pilSupName" class="font-extrabold text-emerald-950 text-sm">--</span>
+            </div>
+            <a id="pilSupPhoneLink" href="#" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-phone"></i><span>اتصال بالمشرف</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- الإشعارات والتعليمات -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
+          <h3 class="font-bold text-dahab-navy mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-bell text-dahab-gold"></i><span>التعليمات والإشعارات</span>
+          </h3>
+          <div id="pilNotificationsList" class="space-y-2.5"></div>
+        </div>
+      </div>
+
+      <!-- القسم 2: البرنامج اليومي والتحركات -->
+      <div id="pilSection-schedule" class="pil-tab-section hidden space-y-4">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
+          <h3 class="font-bold text-dahab-navy mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-dahab-gold"></i><span>البرنامج اليومي والتحركات</span>
+          </h3>
+          <div id="pilProgramsList" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- القسم 3: المناسك والأدعية والسبحة الإلكترونية -->
+      <div id="pilSection-manasik" class="pil-tab-section hidden space-y-4">
+        <div class="navy-gradient text-white rounded-3xl p-5 shadow-lg text-center border border-dahab-gold/40">
+          <span class="text-xs text-dahab-gold font-bold">السبحة الإلكترونية ومناسك الحج</span>
+          <select id="tasbeehSelect" onchange="resetTasbeeh()" class="mt-2 w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs font-bold text-center text-white outline-none">
+            <option value="0" class="text-slate-900">لبيك اللهم لبيك، لبيك لا شريك لك لبيك</option>
+            <option value="1" class="text-slate-900">سبحان الله وبحمده، سبحان الله العظيم</option>
+            <option value="2" class="text-slate-900">أستغفر الله العظيم وأتوب إليه</option>
+            <option value="3" class="text-slate-900">لا إله إلا الله وحده لا شريك له</option>
+          </select>
+          <div id="tasbeehCounter" class="text-5xl font-black text-dahab-gold my-4 font-mono">0</div>
+          <div class="flex justify-center gap-3">
+            <button type="button" onclick="incrementTasbeeh()" class="px-8 py-3 rounded-2xl gold-gradient text-dahab-navy font-black text-base shadow">سبّح</button>
+            <button type="button" onclick="resetTasbeeh()" class="px-4 py-3 rounded-2xl bg-white/10 text-xs font-bold">تصفير</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 space-y-3 text-xs">
+          <h3 class="font-bold text-dahab-navy text-sm flex items-center gap-2">
+            <i class="fa-solid fa-kaaba text-dahab-gold"></i><span>خطوات مناسك الحج والعمرة</span>
+          </h3>
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <h4 class="font-bold text-dahab-navy">1. الإحرام والتلبية</h4>
+            <p class="text-slate-600 mt-1">النية من الميقات ولبس ملابس الإحرام والإكثار من التلبية: لبيك اللهم لبيك.</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <h4 class="font-bold text-dahab-navy">2. الطواف والسعي</h4>
+            <p class="text-slate-600 mt-1">الطواف حول الكعبة 7 أشواط ثم السعي بين الصفا والمروة 7 أشواط.</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+            <h4 class="font-bold text-dahab-navy">3. التروية وعرفة ومزدلفة ومنى</h4>
+            <p class="text-slate-700 mt-1">المبيت بمنى يوم 8، والوقوف بعرفة يوم 9، والمبيت بمزدلفة، ورمي الجمرات وطواف الإفاضة.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- منطقة الطباعة للباركود -->
+  <div id="printableQrArea" class="hidden"></div>
+
+  <!-- منطق التطبيق الأساسي (متاح فوراً لجميع الأزرار) -->
+  <script>
+    const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v2';
+    const LOCAL_STATE_KEY = 'dahab_tours_local_state_v2';
+    const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dahab_tours_sync_channel') : null;
+
+    // تعريف متغيرات الخرائط وطبقات البلاط (CartoDB Voyager & Esri Satellite)
+    let adminMapInstance = null, adminBaseTile = null, adminMarkersLayer = null, adminMapMode = 'streets';
+    let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
+    let pickerMapInstance = null, pickerBaseTile = null, pickerMarker = null, pickerCircle = null, pickerMapMode = 'streets';
+
+    function createMapTileLayer(mode) {
+      if (mode === 'satellite') {
+        return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          attribution: 'Esri Satellite'
+        });
+      }
+      return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
+        subdomains: 'abcd',
+        attribution: 'CartoDB Voyager'
+      });
+    }
+
+    window.toggleMapStyle = function(target) {
+      if (target === 'admin' && adminMapInstance) {
+        adminMapMode = adminMapMode === 'streets' ? 'satellite' : 'streets';
+        if (adminBaseTile) adminMapInstance.removeLayer(adminBaseTile);
+        adminBaseTile = createMapTileLayer(adminMapMode).addTo(adminMapInstance);
+      } else if (target === 'sup' && supMapInstance) {
+        supMapMode = supMapMode === 'streets' ? 'satellite' : 'streets';
+        if (supBaseTile) supMapInstance.removeLayer(supBaseTile);
+        supBaseTile = createMapTileLayer(supMapMode).addTo(supMapInstance);
+      } else if (target === 'picker' && pickerMapInstance) {
+        pickerMapMode = pickerMapMode === 'streets' ? 'satellite' : 'streets';
+        if (pickerBaseTile) pickerMapInstance.removeLayer(pickerBaseTile);
+        pickerBaseTile = createMapTileLayer(pickerMapMode).addTo(pickerMapInstance);
+      }
+    };
+
+    // دوال الحفظ والحذف الموحدة (محلي + سحابي)
+    window.dbSave = async function(colName, id, data) {
+      const list = window.appState[colName] || [];
+      if (id) {
+        const idx = list.findIndex(item => item.id === id);
+        if (idx > -1) list[idx] = { ...list[idx], ...data };
+      } else {
+        const newId = `${colName}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        list.push({ id: newId, ...data });
+        id = newId;
+      }
+      window.appState[colName] = list;
+      broadcastLocalState();
+      refreshAllUI();
+      if (typeof window._cloudSave === 'function') {
+        try { await window._cloudSave(colName, id, data); } catch (e) {}
+      }
+    };
+
+    window.dbDelete = async function(colName, id) {
+      window.appState[colName] = (window.appState[colName] || []).filter(item => item.id !== id);
+      broadcastLocalState();
+      refreshAllUI();
+      if (typeof window._cloudDelete === 'function') {
+        try { await window._cloudDelete(colName, id); } catch (e) {}
+      }
+    };
+
+    const defaultSeedData = {
+      trips: [
+        { id: 'trip-1', code: 'HAJ-1447', type: 'حج سياحي', year: '1447 هـ' }
+      ],
+      groups: [
+        {
+          id: 'grp-1',
+          tripId: 'trip-1',
+          code: 'GRP-A1',
+          name: 'مجموعة النور المتميزة',
+          color: '#D4AF37',
+          supName: 'أ. محمود عبد الرحمن',
+          supCode: 'SUP-01',
+          supPass: '1234',
+          supPhone: '0501112233',
+          busNo: 'باص 101 - VIP',
+          hotelMakkah: 'فندق ساعة مكة فيرمونت',
+          hotelMadinah: 'فندق أنوار المدينة موفنبيك',
+          campArafat: 'مخيم عرفات المطور - بوابة 4',
+          campMina: 'مخيم منى المكيف - شارع الملك فهد'
+        },
+        {
+          id: 'grp-2',
+          tripId: 'trip-1',
+          code: 'GRP-B1',
+          name: 'مجموعة الصفا والمروة',
+          color: '#10B981',
+          supName: 'أ. طارق السعيد',
+          supCode: 'SUP-02',
+          supPass: '1234',
+          supPhone: '0504445566',
+          busNo: 'باص 102 - VIP',
+          hotelMakkah: 'فندق سويس أوتيل المقام',
+          hotelMadinah: 'فندق دار التقوى',
+          campArafat: 'مخيم عرفات - قطاع ب',
+          campMina: 'مخيم منى - قطاع ب'
+        }
+      ],
+      pilgrims: [
+        { id: 'pil-1', name: 'الحاج أحمد محمد محمود', age: 58, groupId: 'grp-1', passport: 'A102030', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'سليم', present: false, lat: 21.4222, lng: 39.8258 },
+        { id: 'pil-2', name: 'الحاجة فاطمة علي حسن', age: 54, groupId: 'grp-1', passport: 'A102031', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'ضغط دم مستقر', present: true, lat: 21.4226, lng: 39.8264 },
+        { id: 'pil-3', name: 'الحاج مصطفى إبراهيم سالم', age: 63, groupId: 'grp-1', passport: 'A102032', hotel: 'فندق ساعة مكة فيرمونت', room: '410', madinahRoom: '308', health: 'سكري', present: false, lat: 21.4219, lng: 39.8252 },
+        { id: 'pil-4', name: 'الحاج خالد عبد الله عمر', age: 47, groupId: 'grp-2', passport: 'B203040', hotel: 'فندق سويس أوتيل المقام', room: '712', madinahRoom: '514', health: 'سليم', present: true, lat: 21.4231, lng: 39.8268 }
+      ],
+      programs: [
+        { id: 'prg-1', day: '8 ذو الحجة (التروية)', time: '07:00 صباحاً', title: 'التحرك من فندق مكة إلى مشعر منى', details: 'التجمع في بهو الفندق بملابس الإحرام وحمل بطاقة الحاج والمظلة الشمسية.' },
+        { id: 'prg-2', day: '9 ذو الحجة (عرفة)', time: '06:30 صباحاً', title: 'التفويج إلى مشعر عرفات', details: 'الصعود للباصات المخصصة لكل مجموعة والالتزام بتعليمات المشرف.' }
+      ],
+      notifications: [
+        { id: 'ntf-1', targetGroup: 'all', priority: 'normal', title: 'أهلاً بضيوف الرحمن في شركة دهب للسياحة', message: 'نسأل الله لكم حجاً مبروراً وسعياً مشكوراً، يرجى إبقاء الـ GPS مفعلاً لسلامتكم.', sender: 'إدارة دهب للسياحة', time: '08:00 ص' }
+      ],
+      locations: [
+        { id: 'loc-1', name: 'منطقة الحرم وفنادق مكة', type: 'hotel', lat: 21.4225, lng: 39.8262, radius: 600 },
+        { id: 'loc-2', name: 'مخيمات منى', type: 'camp', lat: 21.4133, lng: 39.8933, radius: 800 },
+        { id: 'loc-3', name: 'مخيمات عرفات', type: 'camp', lat: 21.3549, lng: 39.9841, radius: 900 }
+      ],
+      sosAlerts: [],
+      qrCodes: [
+        { id: 'qr-1', title: 'تحضير باص 101 - مجموعة النور', groupId: 'grp-1', code: 'DAHAB-BUS-101' },
+        { id: 'qr-2', title: 'تحضير باص 102 - مجموعة الصفا', groupId: 'grp-2', code: 'DAHAB-BUS-102' }
+      ]
+    };
+
+    window.appState = {
+      role: null,
+      currentEntity: null,
+      trips: [],
+      groups: [],
+      pilgrims: [],
+      programs: [],
+      notifications: [],
+      locations: [],
+      sosAlerts: [],
+      qrCodes: [],
+      tasbeeh: 0
+    };
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const colors = {
+        success: 'bg-emerald-700 text-white border-emerald-400',
+        error: 'bg-rose-700 text-white border-rose-400',
+        info: 'bg-dahab-navy text-white border-dahab-gold'
+      };
+      const icons = {
+        success: 'fa-circle-check text-emerald-300',
+        error: 'fa-triangle-exclamation text-rose-200',
+        info: 'fa-bell text-dahab-gold'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto p-3.5 rounded-2xl shadow-xl border text-xs font-bold flex items-center gap-2.5 transition-all ${colors[type] || colors.info}`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} text-base"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3800);
+    }
+
+    function loadSeedIntoMemory() {
+      try {
+        const savedLocal = localStorage.getItem(LOCAL_STATE_KEY);
+        if (savedLocal) {
+          const parsed = JSON.parse(savedLocal);
+          Object.assign(window.appState, parsed);
+          return;
+        }
+      } catch (e) {}
+      const clone = JSON.parse(JSON.stringify(defaultSeedData));
+      Object.assign(window.appState, clone);
+    }
+
+    function broadcastLocalState() {
+      const payload = {
+        trips: window.appState.trips,
+        groups: window.appState.groups,
+        pilgrims: window.appState.pilgrims,
+        programs: window.appState.programs,
+        notifications: window.appState.notifications,
+        locations: window.appState.locations,
+        sosAlerts: window.appState.sosAlerts,
+        qrCodes: window.appState.qrCodes
+      };
+      try { localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(payload)); } catch (e) {}
+      if (syncChannel) {
+        try { syncChannel.postMessage(payload); } catch (e) {}
+      }
+    }
+
+    if (syncChannel) {
+      syncChannel.onmessage = (event) => {
+        if (event.data) {
+          Object.assign(window.appState, event.data);
+          refreshAllUI();
+        }
+      };
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === LOCAL_STATE_KEY && e.newValue) {
+        try {
+          Object.assign(window.appState, JSON.parse(e.newValue));
+          refreshAllUI();
+        } catch (err) {}
+      }
+    });
+
+    function saveAuthSession(role, entityId) {
+      try {
+        sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role, entityId }));
+      } catch (e) {}
+    }
+
+    function clearAuthSession() {
+      try {
+        sessionStorage.removeItem(AUTH_SESSION_KEY);
+      } catch (e) {}
+    }
+
+    function enterPortal(role, entity) {
+      window.appState.role = role;
+      window.appState.currentEntity = entity;
+      saveAuthSession(role, entity ? entity.id : 'admin');
+
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('adminApp').classList.add('hidden');
+      document.getElementById('adminApp').classList.remove('flex');
+      document.getElementById('supervisorApp').classList.add('hidden');
+      document.getElementById('supervisorApp').classList.remove('flex');
+      document.getElementById('pilgrimApp').classList.add('hidden');
+      document.getElementById('pilgrimApp').classList.remove('flex');
+
+      if (role === 'admin') {
+        const el = document.getElementById('adminApp');
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+      } else if (role === 'supervisor') {
+        const el = document.getElementById('supervisorApp');
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+      } else if (role === 'pilgrim') {
+        const el = document.getElementById('pilgrimApp');
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+        requestPilgrimPermissions();
+      }
+      refreshAllUI();
+    }
+
+    function restoreAuthSessionIfAvailable() {
+      try {
+        const raw = sessionStorage.getItem(AUTH_SESSION_KEY);
+        if (!raw) return;
+        const { role, entityId } = JSON.parse(raw);
+        if (role === 'admin') {
+          enterPortal('admin', { id: 'admin', name: 'الإدارة' });
+        } else if (role === 'supervisor') {
+          const grp = window.appState.groups.find(g => g.id === entityId);
+          if (grp) enterPortal('supervisor', grp);
+        } else if (role === 'pilgrim') {
+          const pil = window.appState.pilgrims.find(p => p.id === entityId);
+          if (pil) enterPortal('pilgrim', pil);
+        }
+      } catch (e) {}
+    }
+
+    window.switchLoginRole = function(role) {
+      ['pilgrim', 'supervisor', 'admin'].forEach(r => {
+        const tab = document.getElementById(`loginTab-${r}`);
+        const form = document.getElementById(`loginForm-${r}`);
+        if (r === role) {
+          tab?.classList.add('bg-dahab-navy', 'text-white', 'shadow');
+          tab?.classList.remove('text-slate-600');
+          form?.classList.remove('hidden');
+        } else {
+          tab?.classList.remove('bg-dahab-navy', 'text-white', 'shadow');
+          tab?.classList.add('text-slate-600');
+          form?.classList.add('hidden');
+        }
+      });
+    };
+
+    window.handleLogin = function(e, role) {
+      if (e) e.preventDefault();
+      if (role === 'pilgrim') {
+        const input = (document.getElementById('pilgrimPassportInput').value || '').trim().toUpperCase();
+        const pil = window.appState.pilgrims.find(p => p.passport.toUpperCase() === input || p.id.toUpperCase() === input);
+        if (!pil) {
+          showToast('رقم جواز السفر غير مسجل في النظام، تأكد من الرقم أو جرب A102030', 'error');
+          return;
+        }
+        enterPortal('pilgrim', pil);
+        showToast(`مرحباً بك ${pil.name} في بوابة الحاج`, 'success');
+      } else if (role === 'supervisor') {
+        const input = (document.getElementById('supervisorCodeInput').value || '').trim().toUpperCase();
+        const pass = (document.getElementById('supervisorPassInput').value || '').trim();
+        const grp = window.appState.groups.find(g => g.supCode.toUpperCase() === input || g.supPhone === input || g.code.toUpperCase() === input);
+        if (!grp) {
+          showToast('كود المشرف أو رقم الجوال غير صحيح، جرب SUP-01', 'error');
+          return;
+        }
+        if (pass && grp.supPass && pass !== grp.supPass && pass !== '1234') {
+          showToast('كلمة المرور غير صحيحة', 'error');
+          return;
+        }
+        enterPortal('supervisor', grp);
+        showToast(`أهلاً بك ${grp.supName} - ${grp.name}`, 'success');
+      } else if (role === 'admin') {
+        const user = (document.getElementById('adminUserInput').value || '').trim().toLowerCase();
+        const pass = (document.getElementById('adminPassInput').value || '').trim();
+        if (user === 'admin' && (pass === 'dahab2026' || pass === '1234')) {
+          enterPortal('admin', { id: 'admin', name: 'الإدارة المركزية' });
+          showToast('تم الدخول إلى غرفة عمليات شركة دهب للسياحة', 'success');
+        } else {
+          showToast('بيانات دخول الإدارة غير صحيحة', 'error');
+        }
+      }
+    };
+
+    window.quickDemoLogin = function(role) {
+      window.switchLoginRole(role);
+      if (role === 'pilgrim') {
+        document.getElementById('pilgrimPassportInput').value = 'A102030';
+        window.handleLogin(null, 'pilgrim');
+      } else if (role === 'supervisor') {
+        document.getElementById('supervisorCodeInput').value = 'SUP-01';
+        document.getElementById('supervisorPassInput').value = '1234';
+        window.handleLogin(null, 'supervisor');
+      } else if (role === 'admin') {
+        document.getElementById('adminUserInput').value = 'admin';
+        document.getElementById('adminPassInput').value = 'dahab2026';
+        window.handleLogin(null, 'admin');
+      }
+    };
+
+    window.logout = function() {
+      if (typeof window.closeQrCheckinBox === 'function') window.closeQrCheckinBox();
+      clearAuthSession();
+      window.appState.role = null;
+      window.appState.currentEntity = null;
+      document.getElementById('adminApp').classList.add('hidden');
+      document.getElementById('adminApp').classList.remove('flex');
+      document.getElementById('supervisorApp').classList.add('hidden');
+      document.getElementById('supervisorApp').classList.remove('flex');
+      document.getElementById('pilgrimApp').classList.add('hidden');
+      document.getElementById('pilgrimApp').classList.remove('flex');
+      document.getElementById('loginScreen').classList.remove('hidden');
+    };
+
+    let html5QrScannerInstance = null;
+
+    window.switchPilgrimTab = function(tabName) {
+      ['card', 'schedule', 'manasik'].forEach(t => {
+        document.getElementById(`pilSection-${t}`)?.classList.toggle('hidden', t !== tabName);
+        const btn = document.getElementById(`pilTabBtn-${t}`);
+        if (t === tabName) {
+          btn?.classList.add('bg-dahab-navy', 'text-white');
+          btn?.classList.remove('text-slate-600');
+        } else {
+          btn?.classList.remove('bg-dahab-navy', 'text-white');
+          btn?.classList.add('text-slate-600');
+        }
+      });
+    };
+
+    function renderPilgrimView() {
+      const pil = window.appState.pilgrims.find(p => p.id === window.appState.currentEntity?.id) || window.appState.currentEntity;
+      if (!pil) return;
+      window.appState.currentEntity = pil;
+      const grp = window.appState.groups.find(g => g.id === pil.groupId);
+
+      document.getElementById('pilHeaderName').textContent = pil.name;
+      document.getElementById('pilHeaderPassport').textContent = `رقم الجواز: ${pil.passport}`;
+      document.getElementById('pilAttendanceStatus').textContent = pil.present ? 'تم تسجيل حضورك بالباص ✅' : 'اضغط لفتح الكاميرا';
+
+      document.getElementById('pilGroupName').textContent = grp?.name || '--';
+      document.getElementById('pilBusNumber').textContent = grp?.busNo || '--';
+      document.getElementById('pilHotelMakkah').textContent = pil.hotel || grp?.hotelMakkah || '--';
+      document.getElementById('pilRoomNumber').textContent = pil.room || '--';
+      document.getElementById('pilHotelMadinah').textContent = grp?.hotelMadinah || '--';
+      document.getElementById('pilMadinahRoomNumber').textContent = pil.madinahRoom || '--';
+      document.getElementById('pilCampsText').textContent = `${grp?.campArafat || '-'} / ${grp?.campMina || '-'}`;
+      document.getElementById('pilSupName').textContent = grp?.supName || '--';
+      document.getElementById('pilSupPhoneLink').href = `tel:${grp?.supPhone || ''}`;
+
+      const myNotifs = window.appState.notifications.filter(n => n.targetGroup === 'all' || n.targetGroup === pil.groupId);
+      document.getElementById('pilNotificationsList').innerHTML = myNotifs.map(n => `
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+          <div class="flex justify-between font-bold text-dahab-navy">
+            <span>${n.title}</span>
+            <span class="text-slate-400">${n.time || ''}</span>
+          </div>
+          <p class="text-slate-700 mt-1">${n.message}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('pilProgramsList').innerHTML = window.appState.programs.map(pr => `
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+          <span class="font-bold text-dahab-goldDark">${pr.day} • ${pr.time}</span>
+          <h4 class="font-extrabold text-dahab-navy text-sm mt-0.5">${pr.title}</h4>
+          <p class="text-slate-600 mt-1">${pr.details}</p>
+        </div>
+      `).join('');
+    }
+
+    async function processScannedQrCode(decodedText) {
+      const code = (decodedText || '').trim().toUpperCase();
+      if (!code) return;
+      const valid = window.appState.qrCodes.some(q => q.code.toUpperCase() === code) || code.startsWith('DAHAB');
+      if (valid && window.appState.currentEntity) {
+        await window.dbSave('pilgrims', window.appState.currentEntity.id, { present: true });
+        await window.closeQrCheckinBox();
+        showToast('تم مسح الباركود وتسجيل حضورك في الباص بنجاح وتسميعه لدى المشرف والإدارة', 'success');
+      } else {
+        showToast('باركود غير صالح، يرجى مسح باركود باص شركة دهب الصحيح', 'error');
+      }
+    }
+
+    window.openQrCheckinBox = async function() {
+      const box = document.getElementById('pilQrBox');
+      const statusMsg = document.getElementById('qrCameraStatusMsg');
+      box.classList.remove('hidden');
+      statusMsg.textContent = 'جاري تشغيل الكاميرا لمسح الباركود...';
+      statusMsg.className = 'text-center text-xs font-bold text-emerald-700';
+
+      try {
+        if (typeof Html5Qrcode === 'undefined') throw new Error('QR Library not loaded');
+        if (html5QrScannerInstance) {
+          try { await html5QrScannerInstance.stop(); } catch (e) {}
+        }
+        html5QrScannerInstance = new Html5Qrcode('qrReaderContainer');
+        await html5QrScannerInstance.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 200, height: 200 } },
+          (decodedText) => {
+            processScannedQrCode(decodedText);
+          },
+          () => {}
+        );
+        statusMsg.textContent = 'الكاميرا نشطة: وجه العدسة نحو ملصق الباركود على باب الباص';
+      } catch (err) {
+        statusMsg.textContent = 'تعذر الوصول للكاميرا تلقائياً، يمكنك استخدام الإدخال اليدوي بالأسفل';
+        statusMsg.className = 'text-center text-xs font-bold text-amber-700';
+      }
+    };
+
+    window.closeQrCheckinBox = async function() {
+      if (html5QrScannerInstance) {
+        try {
+          await html5QrScannerInstance.stop();
+          html5QrScannerInstance.clear();
+        } catch (e) {}
+        html5QrScannerInstance = null;
+      }
+      document.getElementById('pilQrBox')?.classList.add('hidden');
+    };
+
+    window.submitManualQrCode = async function() {
+      const code = document.getElementById('manualQrCodeInput').value;
+      await processScannedQrCode(code);
+    };
+
+    function requestPilgrimPermissions() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const pil = window.appState.currentEntity;
+          if (pil) {
+            window.dbSave('pilgrims', pil.id, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+          }
+        }, () => {});
+      }
+    }
+
+    window.switchAdminSection = function(secId) {
+      document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(`sec-${secId}`)?.classList.remove('hidden');
+
+      document.querySelectorAll('.admin-nav-item').forEach(btn => {
+        if (btn.dataset.sec === secId) {
+          btn.classList.add('bg-dahab-gold', 'text-dahab-navy');
+          btn.classList.remove('text-slate-300');
+          document.getElementById('adminSectionTitle').textContent = btn.innerText.trim();
+        } else {
+          btn.classList.remove('bg-dahab-gold', 'text-dahab-navy');
+          btn.classList.add('text-slate-300');
+        }
+      });
+
+      if (window.innerWidth < 1024) {
+        document.getElementById('adminNavMenu').classList.add('hidden');
+      }
+      if (secId === 'map') setTimeout(() => initAdminMap(), 150);
+      if (secId === 'locations') setTimeout(() => initLocationPickerMap(), 150);
+    };
+
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const p1 = lat1 * Math.PI / 180;
+      const p2 = lat2 * Math.PI / 180;
+      const dp = (lat2 - lat1) * Math.PI / 180;
+      const dl = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function isPilgrimInSafeZone(pil) {
+      if (!pil.lat || !pil.lng || window.appState.locations.length === 0) return true;
+      return window.appState.locations.some(loc => getDistanceMeters(pil.lat, pil.lng, loc.lat, loc.lng) <= (loc.radius || 500));
+    }
+
+    function refreshAllUI() {
+      const { trips, groups, pilgrims, programs, notifications, locations, sosAlerts, qrCodes } = window.appState;
+
+      const tripSelect = document.getElementById('grpTripId');
+      if (tripSelect) tripSelect.innerHTML = trips.map(t => `<option value="${t.id}">${t.type} (${t.code})</option>`).join('');
+
+      const grpOptions = groups.map(g => `<option value="${g.id}">${g.name} (${g.code})</option>`).join('');
+      const pilGrpSel = document.getElementById('pilgrimGroupId');
+      if (pilGrpSel) pilGrpSel.innerHTML = grpOptions;
+
+      const qrGrpSel = document.getElementById('qrGroupId');
+      if (qrGrpSel) qrGrpSel.innerHTML = `<option value="all">جميع المجموعات</option>` + grpOptions;
+
+      const notifGrpSel = document.getElementById('notifTargetGroup');
+      if (notifGrpSel) notifGrpSel.innerHTML = `<option value="all">إرسال للجميع</option>` + grpOptions;
+
+      const mapGrpSel = document.getElementById('adminMapGroupFilter');
+      if (mapGrpSel) {
+        const cur = mapGrpSel.value || 'all';
+        mapGrpSel.innerHTML = `<option value="all">جميع المجموعات</option>` + grpOptions;
+        mapGrpSel.value = cur;
+      }
+
+      const totalPil = pilgrims.length;
+      const presentPil = pilgrims.filter(p => p.present).length;
+      const presentPct = totalPil ? Math.round((presentPil / totalPil) * 100) : 0;
+      const safePil = pilgrims.filter(p => isPilgrimInSafeZone(p)).length;
+      const outsidePil = totalPil - safePil;
+      const safePct = totalPil ? Math.round((safePil / totalPil) * 100) : 0;
+
+      document.getElementById('statTotalPilgrims').textContent = totalPil;
+      document.getElementById('statBusPresent').textContent = `${presentPct}%`;
+      document.getElementById('statBusSub').textContent = `${presentPil} من ${totalPil} حاج`;
+      document.getElementById('statSafeZone').textContent = `${safePct}%`;
+      document.getElementById('statOutsideCount').textContent = `${outsidePil} خارج النطاق`;
+      document.getElementById('statSosCount').textContent = sosAlerts.length;
+      document.getElementById('adminSosBadge').textContent = sosAlerts.length;
+
+      const insights = [];
+      if (outsidePil > 0) insights.push(`⚠️ يوجد ${outsidePil} حاج خارج نطاق أمان الفنادق والمخيمات، يُنصح بإرسال تنبيه للمشرفين لمتابعتهم.`);
+      if (totalPil - presentPil > 0) insights.push(`🚌 متبقي ${totalPil - presentPil} حاج لم يكتمل تحضيرهم في الباصات بعد، يرجى التذكير بمسح الباركود.`);
+      if (sosAlerts.length > 0) insights.push(`🚨 يوجد ${sosAlerts.length} بلاغ طوارئ SOS نشط يتطلب تدخل فريق الدعم الميداني فوراً.`);
+      if (insights.length === 0) insights.push(`✅ جميع الحجاج داخل نطاق الأمان ونسبة الانضباط في التفويج ممتازة.`);
+
+      document.getElementById('smartInsightsContainer').innerHTML = insights.map(txt => `
+        <div class="bg-white/10 p-3.5 rounded-xl text-xs font-bold border border-white/10">${txt}</div>
+      `).join('');
+
+      document.getElementById('groupCompletionList').innerHTML = groups.map(g => {
+        const gPil = pilgrims.filter(p => p.groupId === g.id);
+        const gPres = gPil.filter(p => p.present).length;
+        const pct = gPil.length ? Math.round((gPres / gPil.length) * 100) : 0;
+        return `
+          <div>
+            <div class="flex justify-between text-xs font-bold mb-1">
+              <span>${g.name} (${g.busNo})</span>
+              <span>${gPres}/${gPil.length} (${pct}%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all" style="width:${pct}%; background:${g.color}"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('locationPresenceList').innerHTML = locations.map(loc => {
+        const count = pilgrims.filter(p => p.lat && p.lng && getDistanceMeters(p.lat, p.lng, loc.lat, loc.lng) <= loc.radius).length;
+        return `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <div>
+              <span class="font-bold text-dahab-navy block">${loc.name}</span>
+              <span class="text-slate-400">نطاق الأمان: ${loc.radius} متر</span>
+            </div>
+            <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black">${count} حاج</span>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('tripsList').innerHTML = trips.map(t => `
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div>
+            <span class="font-bold text-dahab-navy text-sm block">${t.type}</span>
+            <span class="text-xs text-slate-500">${t.code} - ${t.year}</span>
+          </div>
+          <button type="button" onclick="dbDelete('trips', '${t.id}')" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+
+      document.getElementById('groupsList').innerHTML = groups.map(g => `
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full" style="background:${g.color}"></span>
+              <h4 class="font-black text-dahab-navy text-sm">${g.name} (${g.code})</h4>
+            </div>
+            <button type="button" onclick="dbDelete('groups', '${g.id}')" class="text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <p class="text-xs text-slate-600"><b>المشرف:</b> ${g.supName} (${g.supCode}) | <b>الباص:</b> ${g.busNo}</p>
+          <p class="text-xs text-slate-500"><b>مكة:</b> ${g.hotelMakkah} | <b>المدينة:</b> ${g.hotelMadinah}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.map(p => {
+        const grp = groups.find(g => g.id === p.groupId);
+        return `
+          <tr>
+            <td class="p-3 font-bold text-dahab-navy">${p.name}</td>
+            <td class="p-3 font-mono text-xs">${p.passport}</td>
+            <td class="p-3 text-xs"><span class="px-2 py-0.5 rounded-full text-white font-bold" style="background:${grp?.color || '#0B192C'}">${grp?.name || '-'}</span></td>
+            <td class="p-3 text-xs">
+              مكة: <b>${p.room || '-'}</b> | المدينة: <b>${p.madinahRoom || '-'}</b><br>
+              <span class="text-slate-400">${p.hotel || grp?.hotelMakkah || ''}</span>
+            </td>
+            <td class="p-3 text-xs">${p.health || 'سليم'}</td>
+            <td class="p-3">
+              <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-2.5 py-1 rounded-full text-xs font-bold ${p.present ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                ${p.present ? 'موجود' : 'غير موجود'}
+              </button>
+            </td>
+            <td class="p-3 flex gap-2">
+              <button type="button" onclick="editPilgrim('${p.id}')" class="text-blue-600 hover:underline text-xs font-bold">تعديل</button>
+              <button type="button" onclick="dbDelete('pilgrims', '${p.id}')" class="text-rose-600 hover:underline text-xs font-bold">حذف</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const qrContainer = document.getElementById('qrCodesList');
+      qrContainer.innerHTML = qrCodes.map(q => `
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center text-center">
+          <div id="qr-canvas-${q.id}" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 mb-3"></div>
+          <h4 class="font-bold text-sm text-dahab-navy">${q.title}</h4>
+          <span class="text-xs font-mono bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-md mt-1 font-bold">${q.code}</span>
+          <div class="flex items-center gap-3 mt-3">
+            <button type="button" onclick="printQrCode('${q.id}')" class="px-3 py-1.5 rounded-xl bg-dahab-navy text-dahab-gold text-xs font-bold hover:opacity-90 flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-print"></i><span>طباعة</span>
+            </button>
+            <button type="button" onclick="dbDelete('qrCodes', '${q.id}')" class="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      setTimeout(() => {
+        qrCodes.forEach(q => {
+          const el = document.getElementById(`qr-canvas-${q.id}`);
+          if (el && el.innerHTML === '') {
+            new QRCode(el, { text: q.code, width: 120, height: 120, colorDark: "#0B192C", colorLight: "#ffffff" });
+          }
+        });
+      }, 50);
+
+      document.getElementById('adminProgramsList').innerHTML = programs.map(pr => `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-dahab-goldDark">${pr.day} - ${pr.time}</span>
+            <h4 class="font-bold text-dahab-navy text-sm">${pr.title}</h4>
+            <p class="text-xs text-slate-600 mt-0.5">${pr.details}</p>
+          </div>
+          <button type="button" onclick="dbDelete('programs', '${pr.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+
+      document.getElementById('locationsList').innerHTML = locations.map(loc => `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div>
+            <h4 class="font-bold text-dahab-navy text-sm">${loc.name}</h4>
+            <span class="text-xs text-slate-500">نطاق الأمان: ${loc.radius} متر</span>
+          </div>
+          <button type="button" onclick="dbDelete('locations', '${loc.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+
+      document.getElementById('adminNotificationsList').innerHTML = notifications.map(n => `
+        <div class="p-3.5 rounded-xl border ${n.priority === 'urgent' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}">
+          <div class="flex justify-between text-xs font-bold">
+            <span class="text-dahab-navy">${n.title}</span>
+            <span class="text-slate-400">${n.sender} - ${n.time || ''}</span>
+          </div>
+          <p class="text-xs text-slate-600 mt-1">${n.message}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('adminSosList').innerHTML = sosAlerts.length ? sosAlerts.map(s => `
+        <div class="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 flex items-center justify-between">
+          <div>
+            <span class="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">استغاثة SOS</span>
+            <h4 class="font-black text-rose-950 text-base mt-1">${s.pilgrimName}</h4>
+            <p class="text-xs text-rose-800">${s.groupName} | جواز: ${s.passport}</p>
+          </div>
+          <button type="button" onclick="dbDelete('sosAlerts', '${s.id}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">تمت الاستجابة</button>
+        </div>
+      `).join('') : `<p class="text-sm text-slate-500">لا توجد بلاغات طوارئ حالياً.</p>`;
+
+      if (adminMapInstance) renderAdminMapMarkers();
+      if (window.appState.role === 'supervisor') renderSupervisorView();
+      if (window.appState.role === 'pilgrim') renderPilgrimView();
+    }
+
+    window.handleAddTrip = async function(e) {
+      e.preventDefault();
+      await window.dbSave('trips', null, {
+        code: document.getElementById('tripCode').value.trim(),
+        type: document.getElementById('tripType').value,
+        year: document.getElementById('tripYear').value.trim()
+      });
+      e.target.reset();
+      showToast('تم إضافة الرحلة بنجاح', 'success');
+    };
+
+    window.handleAddGroup = async function(e) {
+      e.preventDefault();
+      await window.dbSave('groups', null, {
+        tripId: document.getElementById('grpTripId').value,
+        code: document.getElementById('grpCode').value.trim().toUpperCase(),
+        name: document.getElementById('grpName').value.trim(),
+        color: document.getElementById('grpColor').value,
+        supName: document.getElementById('grpSupName').value.trim(),
+        supCode: document.getElementById('grpSupCode').value.trim().toUpperCase(),
+        supPass: '1234',
+        supPhone: document.getElementById('grpSupPhone').value.trim(),
+        busNo: document.getElementById('grpBusNo').value.trim(),
+        hotelMakkah: document.getElementById('grpHotelMakkah').value.trim(),
+        hotelMadinah: document.getElementById('grpHotelMadinah').value.trim(),
+        campArafat: document.getElementById('grpCampArafat').value.trim(),
+        campMina: document.getElementById('grpCampMina').value.trim()
+      });
+      e.target.reset();
+      showToast('تم تكويد المجموعة بنجاح', 'success');
+    };
+
+    window.handleSavePilgrim = async function(e) {
+      e.preventDefault();
+      const id = document.getElementById('editPilgrimId').value || null;
+      const existing = id ? window.appState.pilgrims.find(p => p.id === id) : null;
+      await window.dbSave('pilgrims', id, {
+        name: document.getElementById('pilgrimName').value.trim(),
+        age: Number(document.getElementById('pilgrimAge').value),
+        groupId: document.getElementById('pilgrimGroupId').value,
+        passport: document.getElementById('pilgrimPassport').value.trim().toUpperCase(),
+        hotel: document.getElementById('pilgrimHotel').value.trim(),
+        room: document.getElementById('pilgrimRoom').value.trim(),
+        madinahRoom: document.getElementById('pilgrimMadinahRoom').value.trim() || '-',
+        health: document.getElementById('pilgrimHealth').value.trim() || 'سليم',
+        present: existing ? existing.present : false,
+        lat: existing ? existing.lat : 21.4210 + (Math.random() - 0.5) * 0.005,
+        lng: existing ? existing.lng : 39.8250 + (Math.random() - 0.5) * 0.005
+      });
+      resetPilgrimForm();
+      showToast('تم حفظ بيانات الحاج بنجاح', 'success');
+    };
+
+    window.editPilgrim = function(id) {
+      const p = window.appState.pilgrims.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('editPilgrimId').value = p.id;
+      document.getElementById('pilgrimName').value = p.name;
+      document.getElementById('pilgrimAge').value = p.age;
+      document.getElementById('pilgrimGroupId').value = p.groupId;
+      document.getElementById('pilgrimPassport').value = p.passport;
+      document.getElementById('pilgrimHotel').value = p.hotel || '';
+      document.getElementById('pilgrimRoom').value = p.room;
+      document.getElementById('pilgrimMadinahRoom').value = p.madinahRoom || '';
+      document.getElementById('pilgrimHealth').value = p.health || '';
+    };
+
+    window.resetPilgrimForm = function() {
+      document.getElementById('editPilgrimId').value = '';
+      document.getElementById('pilgrimName').value = '';
+      document.getElementById('pilgrimAge').value = '';
+      document.getElementById('pilgrimPassport').value = '';
+      document.getElementById('pilgrimHotel').value = '';
+      document.getElementById('pilgrimRoom').value = '';
+      document.getElementById('pilgrimMadinahRoom').value = '';
+      document.getElementById('pilgrimHealth').value = '';
+    };
+
+    window.togglePilgrimPresent = async function(id, status) {
+      await window.dbSave('pilgrims', id, { present: status });
+      showToast(status ? 'تم تسجيل الحاج موجود بالباص' : 'تم تحديث الحالة إلى غير موجود', 'info');
+    };
+
+    window.exportPilgrimsExcel = function() {
+      const rows = window.appState.pilgrims.map(p => {
+        const grp = window.appState.groups.find(g => g.id === p.groupId);
+        return {
+          'الاسم': p.name,
+          'السن': p.age,
+          'رقم الجواز': p.passport,
+          'المجموعة': grp ? grp.name : p.groupId,
+          'الفندق': p.hotel || grp?.hotelMakkah || '',
+          'غرفة مكة': p.room,
+          'غرفة المدينة': p.madinahRoom || '-',
+          'الحالة الصحية': p.health,
+          'حالة الباص': p.present ? 'موجود' : 'غير موجود'
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'الحجاج');
+      XLSX.writeFile(wb, 'كشف_حجاج_شركة_دهب_للسياحة.xlsx');
+      showToast('تم تصدير ملف Excel بنجاح', 'success');
+    };
+
+    window.importPilgrimsExcel = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet);
+          const defaultGrpId = window.appState.groups[0]?.id || 'grp-1';
+          for (const row of json) {
+            await window.dbSave('pilgrims', null, {
+              name: row['الاسم'] || row['name'] || 'حاج مستورد',
+              age: Number(row['السن'] || row['age'] || 45),
+              passport: String(row['رقم الجواز'] || row['passport'] || `IMP-${Math.floor(Math.random()*9000+1000)}`).toUpperCase(),
+              groupId: defaultGrpId,
+              hotel: row['الفندق'] || '',
+              room: String(row['غرفة مكة'] || row['رقم الغرفة'] || '101'),
+              madinahRoom: String(row['غرفة المدينة'] || '201'),
+              health: row['الحالة الصحية'] || 'سليم',
+              present: false,
+              lat: 21.4210 + (Math.random() - 0.5) * 0.005,
+              lng: 39.8250 + (Math.random() - 0.5) * 0.005
+            });
+          }
+          showToast(`تم استيراد ${json.length} حاج بنجاح`, 'success');
+        } catch (err) {
+          showToast('تعذر قراءة ملف Excel', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    window.handleCreateQr = async function(e) {
+      e.preventDefault();
+      const randomCode = 'DAHAB-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+      await window.dbSave('qrCodes', null, {
+        title: document.getElementById('qrTitle').value.trim(),
+        groupId: document.getElementById('qrGroupId').value,
+        code: randomCode
+      });
+      e.target.reset();
+      showToast('تم إنشاء الباركود بنجاح', 'success');
+    };
+
+    window.printQrCode = function(qrId) {
+      const qr = window.appState.qrCodes.find(q => q.id === qrId);
+      if (!qr) return;
+      const grp = window.appState.groups.find(g => g.id === qr.groupId);
+      const printArea = document.getElementById('printableQrArea');
+      printArea.innerHTML = `
+        <div style="border: 4px solid #D4AF37; border-radius: 24px; padding: 40px; text-align: center; max-width: 480px; width: 100%; font-family: 'Cairo', sans-serif;">
+          <h1 style="font-size: 28px; font-weight: 900; color: #0B192C; margin-bottom: 6px;">شركة دهب للسياحة</h1>
+          <p style="font-size: 15px; color: #AA820A; font-weight: 700; margin-bottom: 24px;">نظام تسجيل حضور الحجاج والمعتمرين</p>
+          <div id="print-qr-target" style="display: flex; justify-content: center; margin: 20px auto; padding: 16px; border: 2px dashed #cbd5e1; border-radius: 16px; width: fit-content;"></div>
+          <h2 style="font-size: 22px; font-weight: 800; color: #0B192C; margin-top: 20px;">${qr.title}</h2>
+          <p style="font-size: 16px; color: #475569; font-weight: 700; margin-top: 6px;">المجموعة: ${grp ? grp.name : 'عام لجميع المجموعات'}</p>
+          <div style="margin-top: 18px; display: inline-block; background: #0B192C; color: #D4AF37; padding: 8px 24px; border-radius: 999px; font-family: monospace; font-size: 18px; font-weight: 900;">
+            ${qr.code}
+          </div>
+        </div>
+      `;
+      new QRCode(document.getElementById('print-qr-target'), { text: qr.code, width: 220, height: 220, colorDark: "#0B192C", colorLight: "#ffffff" });
+      setTimeout(() => window.print(), 250);
+    };
+
+    window.handleAddProgram = async function(e) {
+      e.preventDefault();
+      await window.dbSave('programs', null, {
+        day: document.getElementById('progDay').value.trim(),
+        time: document.getElementById('progTime').value.trim(),
+        title: document.getElementById('progTitle').value.trim(),
+        details: document.getElementById('progDetails').value.trim()
+      });
+      e.target.reset();
+      showToast('تم إضافة الفعالية للبرنامج', 'success');
+    };
+
+    window.handleAddLocation = async function(e) {
+      e.preventDefault();
+      await window.dbSave('locations', null, {
+        name: document.getElementById('locName').value.trim(),
+        type: document.getElementById('locType').value,
+        lat: Number(document.getElementById('locLat').value),
+        lng: Number(document.getElementById('locLng').value),
+        radius: Number(document.getElementById('locRadius').value) || 500
+      });
+      document.getElementById('locName').value = '';
+      showToast('تم حفظ الموقع ونطاق الأمان بنجاح', 'success');
+    };
+
+    window.handleSendNotification = async function(e, senderName) {
+      e.preventDefault();
+      await window.dbSave('notifications', null, {
+        targetGroup: document.getElementById('notifTargetGroup').value,
+        priority: document.getElementById('notifPriority').value,
+        title: document.getElementById('notifTitle').value.trim(),
+        message: document.getElementById('notifMessage').value.trim(),
+        sender: senderName,
+        time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      });
+      e.target.reset();
+      showToast('تم إرسال الإشعار بنجاح', 'success');
+    };
+
+    function initAdminMap() {
+      const container = document.getElementById('adminMap');
+      if (!container) return;
+      if (!adminMapInstance) {
+        adminMapInstance = L.map('adminMap').setView([21.4225, 39.8262], 14);
+        adminBaseTile = createMapTileLayer(adminMapMode).addTo(adminMapInstance);
+        adminMarkersLayer = L.layerGroup().addTo(adminMapInstance);
+      }
+      setTimeout(() => {
+        adminMapInstance.invalidateSize();
+        renderAdminMapMarkers();
+      }, 200);
+    }
+
+    window.panAdminMap = function(lat, lng, zoom) {
+      if (adminMapInstance) adminMapInstance.setView([lat, lng], zoom);
+    };
+
+    window.renderAdminMapMarkers = function() {
+      if (!adminMarkersLayer) return;
+      adminMarkersLayer.clearLayers();
+      const filterGrp = document.getElementById('adminMapGroupFilter')?.value || 'all';
+
+      window.appState.locations.forEach(loc => {
+        L.circle([loc.lat, loc.lng], {
+          color: '#10B981', fillColor: '#10B981', fillOpacity: 0.15, radius: loc.radius || 500
+        }).addTo(adminMarkersLayer).bindPopup(`<b>${loc.name}</b><br>نطاق الأمان: ${loc.radius} متر`);
+      });
+
+      const filteredPilgrims = filterGrp === 'all'
+        ? window.appState.pilgrims
+        : window.appState.pilgrims.filter(p => p.groupId === filterGrp);
+
+      filteredPilgrims.forEach(p => {
+        if (!p.lat || !p.lng) return;
+        const grp = window.appState.groups.find(g => g.id === p.groupId);
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-8 h-8 text-xs" style="background:${grp?.color || '#0B192C'}"><i class="fa-solid fa-person"></i></div>`,
+          iconSize: [32, 32]
+        });
+        L.marker([p.lat, p.lng], { icon }).addTo(adminMarkersLayer)
+          .bindPopup(`<b>${p.name}</b><br>${grp?.name || ''}<br>غرفة مكة: ${p.room}`);
+      });
+
+      window.appState.groups.forEach(g => {
+        if (filterGrp !== 'all' && g.id !== filterGrp) return;
+        const gPil = window.appState.pilgrims.find(p => p.groupId === g.id);
+        const lat = gPil ? gPil.lat + 0.001 : 21.4220;
+        const lng = gPil ? gPil.lng + 0.001 : 39.8255;
+        const busIcon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-9 h-9 text-sm" style="background:#0B192C; border-color:#D4AF37;"><i class="fa-solid fa-bus text-amber-400"></i></div>`,
+          iconSize: [36, 36]
+        });
+        L.marker([lat, lng], { icon: busIcon }).addTo(adminMarkersLayer)
+          .bindPopup(`<b>${g.busNo}</b><br>${g.name}<br>المشرف: ${g.supName}`);
+      });
+    };
+
+    window.simulateBusMovement = async function() {
+      for (const p of window.appState.pilgrims) {
+        await window.dbSave('pilgrims', p.id, {
+          lat: (p.lat || 21.4215) + (Math.random() - 0.5) * 0.003,
+          lng: (p.lng || 39.8250) + (Math.random() - 0.5) * 0.003
+        });
+      }
+      showToast('تم تحديث مواقع الحجاج والباصات على الخريطة', 'info');
+    };
+
+    window.simulateMovement = window.simulateBusMovement;
+
+    function initLocationPickerMap() {
+      const container = document.getElementById('locationPickerMap');
+      if (!container) return;
+      const defaultLat = 21.4225;
+      const defaultLng = 39.8262;
+
+      if (!pickerMapInstance) {
+        pickerMapInstance = L.map('locationPickerMap').setView([defaultLat, defaultLng], 15);
+        pickerBaseTile = createMapTileLayer(pickerMapMode).addTo(pickerMapInstance);
+
+        pickerMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(pickerMapInstance);
+        pickerCircle = L.circle([defaultLat, defaultLng], {
+          color: '#10B981', fillColor: '#10B981', fillOpacity: 0.18,
+          radius: Number(document.getElementById('locRadius').value) || 500
+        }).addTo(pickerMapInstance);
+
+        pickerMapInstance.on('click', (e) => setPickedLocation(e.latlng.lat, e.latlng.lng));
+        pickerMarker.on('dragend', () => {
+          const pos = pickerMarker.getLatLng();
+          setPickedLocation(pos.lat, pos.lng);
+        });
+      }
+      if (!document.getElementById('locLat').value) setPickedLocation(defaultLat, defaultLng);
+      setTimeout(() => pickerMapInstance.invalidateSize(), 200);
+    }
+
+    function setPickedLocation(lat, lng) {
+      document.getElementById('locLat').value = Number(lat).toFixed(6);
+      document.getElementById('locLng').value = Number(lng).toFixed(6);
+      if (pickerMarker) pickerMarker.setLatLng([lat, lng]);
+      if (pickerCircle) {
+        pickerCircle.setLatLng([lat, lng]);
+        pickerCircle.setRadius(Number(document.getElementById('locRadius').value) || 500);
+      }
+    }
+
+    window.focusPickerMap = function(lat, lng, zoom) {
+      if (pickerMapInstance) {
+        pickerMapInstance.setView([lat, lng], zoom);
+        setPickedLocation(lat, lng);
+      }
+    };
+
+    window.updatePickerCircleRadius = function() {
+      if (pickerCircle) pickerCircle.setRadius(Number(document.getElementById('locRadius').value) || 500);
+    };
+
+    window.switchSupTab = function(tab) {
+      ['attendance', 'map', 'notify'].forEach(t => {
+        document.getElementById(`supSec-${t}`)?.classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`supTab-${t}`);
+        if (t === tab) {
+          btn?.classList.add('bg-dahab-navy', 'text-white');
+          btn?.classList.remove('text-slate-600');
+        } else {
+          btn?.classList.remove('bg-dahab-navy', 'text-white');
+          btn?.classList.add('text-slate-600');
+        }
+      });
+      if (tab === 'map') setTimeout(() => initSupervisorMap(), 150);
+    };
+
+    function renderSupervisorView() {
+      const grp = window.appState.groups.find(g => g.id === window.appState.currentEntity?.id) || window.appState.currentEntity;
+      if (!grp) return;
+
+      document.getElementById('supGroupBadge').textContent = grp.name;
+      document.getElementById('supGroupBadge').style.background = grp.color;
+      document.getElementById('supGroupBadge').style.color = '#fff';
+      document.getElementById('supWelcomeTitle').textContent = `مرحباً ${grp.supName}`;
+      document.getElementById('supBusInfo').textContent = `${grp.busNo} | ${grp.hotelMakkah}`;
+
+      const myPilgrims = window.appState.pilgrims.filter(p => p.groupId === grp.id);
+      const presentCount = myPilgrims.filter(p => p.present).length;
+
+      document.getElementById('supTotalCount').textContent = myPilgrims.length;
+      document.getElementById('supPresentCount').textContent = presentCount;
+      document.getElementById('supAbsentCount').textContent = myPilgrims.length - presentCount;
+
+      document.getElementById('supPilgrimsList').innerHTML = myPilgrims.map(p => `
+        <div class="p-3.5 rounded-xl border ${p.present ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'} flex items-center justify-between">
+          <div>
+            <h4 class="font-bold text-dahab-navy text-sm">${p.name}</h4>
+            <span class="text-xs text-slate-500">جواز: ${p.passport} | غرفة مكة: ${p.room}</span>
+          </div>
+          <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-3.5 py-2 rounded-xl text-xs font-black shadow-sm transition ${p.present ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}">
+            ${p.present ? 'موجود بالباص' : 'غير موجود'}
+          </button>
+        </div>
+      `).join('');
+
+      if (supMapInstance) renderSupervisorMapMarkers();
+    }
+
+    function initSupervisorMap() {
+      const container = document.getElementById('supervisorMap');
+      if (!container) return;
+      if (!supMapInstance) {
+        supMapInstance = L.map('supervisorMap').setView([21.4215, 39.8250], 15);
+        supBaseTile = createMapTileLayer(supMapMode).addTo(supMapInstance);
+        supMarkersLayer = L.layerGroup().addTo(supMapInstance);
+      }
+      setTimeout(() => {
+        supMapInstance.invalidateSize();
+        renderSupervisorMapMarkers();
+      }, 200);
+    }
+
+    function renderSupervisorMapMarkers() {
+      if (!supMarkersLayer || !window.appState.currentEntity) return;
+      supMarkersLayer.clearLayers();
+      const grp = window.appState.currentEntity;
+      const myPilgrims = window.appState.pilgrims.filter(p => p.groupId === grp.id);
+      const bounds = [];
+
+      myPilgrims.forEach(p => {
+        if (!p.lat || !p.lng) return;
+        bounds.push([p.lat, p.lng]);
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-8 h-8 text-xs" style="background:${grp.color}"><i class="fa-solid fa-person"></i></div>`,
+          iconSize: [32, 32]
+        });
+        L.marker([p.lat, p.lng], { icon }).addTo(supMarkersLayer)
+          .bindPopup(`<b>${p.name}</b><br>غرفة مكة: ${p.room}<br>${p.present ? 'موجود بالباص' : 'غير موجود'}`);
+      });
+
+      if (bounds.length > 0 && supMapInstance) {
+        supMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      }
+    }
+
+    window.handleSupSendNotif = async function(e) {
+      e.preventDefault();
+      const grp = window.appState.currentEntity;
+      await window.dbSave('notifications', null, {
+        targetGroup: grp.id,
+        priority: 'urgent',
+        title: document.getElementById('supNotifTitle').value.trim(),
+        message: document.getElementById('supNotifMsg').value.trim(),
+        sender: `المشرف: ${grp.supName}`,
+        time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      });
+      e.target.reset();
+      showToast('تم إرسال التنبيه لحجاج مجموعتك', 'success');
+    };
+
+    window.sendPilgrimSos = async function() {
+      const pil = window.appState.currentEntity;
+      if (!pil) return;
+      const grp = window.appState.groups.find(g => g.id === pil.groupId);
+      await window.dbSave('sosAlerts', null, {
+        pilgrimName: pil.name,
+        groupName: grp?.name || 'مجموعة الحاج',
+        passport: pil.passport,
+        lat: pil.lat || 21.4225,
+        lng: pil.lng || 39.8262,
+        time: 'الآن'
+      });
+      showToast('تم إرسال نداء استغاثة عاجل مع موقعك للإدارة والمشرف!', 'error');
+    };
+
+    window.incrementTasbeeh = function() {
+      window.appState.tasbeeh++;
+      document.getElementById('tasbeehCounter').textContent = window.appState.tasbeeh;
+    };
+
+    window.resetTasbeeh = function() {
+      window.appState.tasbeeh = 0;
+      document.getElementById('tasbeehCounter').textContent = '0';
+    };
+
+    loadSeedIntoMemory();
+    restoreAuthSessionIfAvailable();
+  </script>
+
+  <!-- ===================================================================== -->
+  <!-- المزامنة السحابية عبر Firebase (ضع بيانات مشروعك هنا للنشر الفعلي)    -->
+  <!-- ===================================================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, addDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
+
+    // استبدل null بكود firebaseConfig الخاص بمشروعك من Firebase Console عند النشر
+    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
+  apiKey: "AIzaSyAMuBjjJ3JCVFC9XYbJWJKZ-mf6nI6I-Qc",
+  authDomain: "dahab-tours.firebaseapp.com",
+  projectId: "dahab-tours",
+  storageBucket: "dahab-tours.firebasestorage.app",
+  messagingSenderId: "732016068774",
+  appId: "1:732016068774:web:33560cb9a6386074becc67",
+  measurementId: "G-PQLQ6ECZFR"
+};;
+
+    const firebaseConfig = typeof __firebase_config !== 'undefined'
+      ? JSON.parse(__firebase_config)
+      : CUSTOM_FIREBASE_CONFIG;
+
+    async function connectCloudFirebase() {
+      try {
+        if (!firebaseConfig) return;
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+        if (!auth.currentUser) return;
+
+        const badge = document.getElementById('dbConnectionBadge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>متصل بقاعدة البيانات السحابية</span>`;
+        }
+
+        window._cloudSave = async function(colName, id, data) {
+          if (id) {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id), data, { merge: true });
+          } else {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', colName), data);
+          }
+        };
+
+        window._cloudDelete = async function(colName, id) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id));
+        };
+
+        const collections = ['trips', 'groups', 'pilgrims', 'programs', 'notifications', 'locations', 'sosAlerts', 'qrCodes'];
+        collections.forEach(colName => {
+          const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
+          onSnapshot(colRef, async (snapshot) => {
+            if (snapshot.empty && colName === 'trips') {
+              for (const [cName, items] of Object.entries(defaultSeedData)) {
+                for (const item of items) {
+                  const { id, ...data } = item;
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', cName, id), data);
+                }
+              }
+              return;
+            }
+            window.appState[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            broadcastLocalState();
+            refreshAllUI();
+          }, (err) => console.error(err));
+        });
+      } catch (err) {
+        console.warn('Running in local sync mode:', err.message);
+      }
+    }
+
+    connectCloudFirebase();
+  </script>
+</body>
+</html>
+```
+
+تم تجهيز المتغير `CUSTOM_FIREBASE_CONFIG` في آخر ملف `index.html` ليسهل عليك لصق إعدادات مشروعك من Firebase مباشرة، ثم رفع الملف على **Netlify Drop** أو **GitHub Pages** كما هو موضح في دليل النشر.
