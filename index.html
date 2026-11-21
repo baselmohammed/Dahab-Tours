@@ -107,7 +107,7 @@
   <!-- إشعارات النظام العائمة (Toast) -->
   <div id="toastContainer" class="fixed top-4 left-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-  <!-- نافذة إعداد ربط Firebase في حال عدم وضع كود الإعدادات في الملف -->
+  <!-- نافذة إعداد ربط Firebase -->
   <div id="firebaseSetupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9998] hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border-2 border-dahab-gold">
       <div class="navy-gradient p-5 text-white flex items-center justify-between">
@@ -119,19 +119,12 @@
       </div>
       <div class="p-6 space-y-4 text-xs">
         <p class="text-slate-600 leading-relaxed">
-          لضمان حفظ كافة البيانات في جداول <strong>Firebase Firestore</strong> ومزامنتها لحظياً بين الكمبيوتر والموبايل، الصق كود <code>firebaseConfig</code> الخاص بمشروعك هنا (أو ضعه داخل متغير <code>CUSTOM_FIREBASE_CONFIG</code> في كود الملف ليعمل تلقائياً على جميع الأجهزة):
+          تم دمج إعدادات مشروع <strong>dahab-tours</strong> تلقائياً في الكود. إذا ظهرت رسالة خطأ في الاتصال، تأكد من تفعيل <strong>Firestore Database (Test mode)</strong> و <strong>Anonymous Auth</strong> في لوحة Firebase:
         </p>
-        <textarea id="firebaseConfigInput" rows="7" dir="ltr" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "dahab-tours.firebaseapp.com",
-  "projectId": "dahab-tours",
-  "storageBucket": "dahab-tours.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456789:web:abcdef"
-}' class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
+        <textarea id="firebaseConfigInput" rows="7" dir="ltr" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
         <div class="flex gap-2">
           <button type="button" onclick="saveFirebaseConfigFromUI()" class="flex-1 py-3 rounded-xl navy-gradient text-dahab-gold font-black text-sm shadow">
-            حفظ والاتصال بقاعدة البيانات الآن
+            حفظ وإعادة الاتصال بقاعدة البيانات
           </button>
         </div>
       </div>
@@ -883,7 +876,7 @@
     };
 
     window.openFirebaseSetupModal = function() {
-      const saved = localStorage.getItem(FB_CONFIG_STORAGE_KEY);
+      const saved = localStorage.getItem(FB_CONFIG_STORAGE_KEY) || JSON.stringify(window.DEFAULT_DAHAB_FIREBASE_CONFIG, null, 2);
       if (saved) document.getElementById('firebaseConfigInput').value = saved;
       const modal = document.getElementById('firebaseSetupModal');
       modal.classList.remove('hidden');
@@ -902,14 +895,12 @@
         showToast('يرجى لصق كود firebaseConfig أولاً', 'error');
         return;
       }
-      // استخراج كائن JSON حتى لو قام المستخدم بلصق الكود كاملاً مع const firebaseConfig =
       const firstBrace = raw.indexOf('{');
       const lastBrace = raw.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1) {
         raw = raw.substring(firstBrace, lastBrace + 1);
       }
       try {
-        // تحويل الصيغة إلى JSON صالح حتى لو كانت المفاتيح بدون علامات تنصيص
         const parsed = (new Function('return ' + raw))();
         if (!parsed || !parsed.apiKey || !parsed.projectId) {
           throw new Error('بيانات غير مكتملة');
@@ -953,11 +944,9 @@
       }
     };
 
-    // الحفظ المباشر في جداول (Collections) قاعدة بيانات Firebase Firestore فقط
     window.dbSave = async function(colName, id, data) {
       if (typeof window._cloudSave !== 'function') {
-        showToast('قاعدة بيانات Firebase غير متصلة! اضغط على أيقونة الترس لربط المشروع.', 'error');
-        openFirebaseSetupModal();
+        showToast('قاعدة بيانات Firebase غير متصلة! تأكد من تفعيل Firestore و Anonymous Auth.', 'error');
         return;
       }
       try {
@@ -1001,7 +990,7 @@
       setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
-      }, 4000);
+      }, 4500);
     }
 
     function saveAuthSession(role, entityId) {
@@ -1087,8 +1076,7 @@
         if (user === 'admin' && (pass === 'dahab2026' || pass === '1234')) {
           enterPortal('admin', { id: 'admin', name: 'الإدارة المركزية' });
           if (!window.appState.cloudConnected) {
-            showToast('تنبيه: يرجى ربط مشروع Firebase لحفظ البيانات في السحابة', 'error');
-            openFirebaseSetupModal();
+            showToast('تنبيه: يرجى تفعيل Anonymous Auth و Firestore في لوحة Firebase', 'error');
           } else {
             showToast('تم الدخول إلى غرفة العمليات المتصلة بـ Firebase', 'success');
           }
@@ -1099,8 +1087,7 @@
       }
 
       if (!window.appState.cloudConnected) {
-        showToast('لم يتم الاتصال بقاعدة بيانات Firebase بعد! تأكد من إعدادات الربط.', 'error');
-        openFirebaseSetupModal();
+        showToast('لم يتم الاتصال بقاعدة بيانات Firebase بعد! تأكد من تفعيل Anonymous Auth و Firestore.', 'error');
         return;
       }
 
@@ -1344,7 +1331,7 @@
       if (loginSummary) {
         loginSummary.innerHTML = window.appState.cloudConnected
           ? `متصل بـ Firebase • <b>${groups.length}</b> مجموعات | <b>${pilgrims.length}</b> حاج مسجل`
-          : `بانتظار ربط قاعدة بيانات Firebase لعرض السجلات`;
+          : `تأكد من تفعيل Firestore و Anonymous Auth في مشروع dahab-tours`;
       }
 
       const tripSelect = document.getElementById('grpTripId');
@@ -2126,29 +2113,25 @@
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
 
-    // ضع كود firebaseConfig الخاص بمشروعك هنا مكان null ليتم الربط تلقائياً على جميع الهواتف
-    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
-  apiKey: "AIzaSyAMuBjjJ3JCVFC9XYbJWJKZ-mf6nI6I-Qc",
-  authDomain: "dahab-tours.firebaseapp.com",
-  projectId: "dahab-tours",
-  storageBucket: "dahab-tours.firebasestorage.app",
-  messagingSenderId: "732016068774",
-  appId: "1:732016068774:web:33560cb9a6386074becc67",
-  measurementId: "G-PQLQ6ECZFR"
-};;
+    window.DEFAULT_DAHAB_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAMuBjjJ3JCVFC9XYbJWJKZ-mf6nI6I-Qc",
+      authDomain: "dahab-tours.firebaseapp.com",
+      projectId: "dahab-tours",
+      storageBucket: "dahab-tours.firebasestorage.app",
+      messagingSenderId: "732016068774",
+      appId: "1:732016068774:web:33560cb9a6386074becc67",
+      measurementId: "G-PQLQ6ECZFR"
+    };
 
     function getActiveFirebaseConfig() {
       if (typeof __firebase_config !== 'undefined' && __firebase_config) {
         return JSON.parse(__firebase_config);
       }
-      if (CUSTOM_FIREBASE_CONFIG && CUSTOM_FIREBASE_CONFIG.apiKey) {
-        return CUSTOM_FIREBASE_CONFIG;
-      }
       try {
         const saved = localStorage.getItem('dahab_tours_firebase_config_v1');
         if (saved) return JSON.parse(saved);
       } catch (e) {}
-      return null;
+      return window.DEFAULT_DAHAB_FIREBASE_CONFIG;
     }
 
     function updateConnectionUI(isConnected, message) {
@@ -2171,12 +2154,6 @@
 
     async function connectCloudFirebase() {
       const firebaseConfig = getActiveFirebaseConfig();
-      if (!firebaseConfig) {
-        updateConnectionUI(false, 'غير متصل بـ Firebase (اضغط الترس للربط)');
-        window.refreshAllUI();
-        return;
-      }
-
       try {
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -2189,7 +2166,7 @@
         }
 
         if (!auth.currentUser) {
-          throw new Error('فشل المصادقة، تأكد من تفعيل Anonymous في Firebase Authentication');
+          throw new Error('يرجى تفعيل Anonymous في Firebase Authentication');
         }
 
         window._cloudSave = async function(colName, id, data) {
@@ -2205,7 +2182,7 @@
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id));
         };
 
-        updateConnectionUI(true, 'متصل مباشرة بـ Firebase Firestore');
+        updateConnectionUI(true, 'متصل مباشرة بـ Firebase (dahab-tours)');
 
         const collections = ['trips', 'groups', 'pilgrims', 'programs', 'notifications', 'locations', 'sosAlerts', 'qrCodes'];
         let loadedCollections = 0;
@@ -2221,13 +2198,18 @@
             window.refreshAllUI();
           }, (err) => {
             console.error(`Firestore listener error (${colName}):`, err);
-            updateConnectionUI(false, 'خطأ في صلاحيات Firestore (تأكد من Rules)');
+            updateConnectionUI(false, 'خطأ في صلاحيات Firestore Rules');
+            window.showToast('يرجى فتح Firestore Rules وجعلها تسمح بالقراءة والكتابة', 'error');
           });
         });
       } catch (err) {
         console.error('Firebase Init Error:', err);
-        updateConnectionUI(false, 'تعذر الاتصال بـ Firebase');
-        window.showToast('خطأ في الاتصال بـ Firebase: ' + err.message, 'error');
+        let arMsg = err.message;
+        if (err.code === 'auth/admin-restricted-operation' || err.code === 'auth/operation-not-allowed') {
+          arMsg = 'يرجى تفعيل Anonymous في Firebase Authentication أولاً!';
+        }
+        updateConnectionUI(false, 'يلزم تفعيل Authentication / Firestore');
+        window.showToast(arMsg, 'error');
       }
     }
 
@@ -2235,4 +2217,3 @@
   </script>
 </body>
 </html>
-```
