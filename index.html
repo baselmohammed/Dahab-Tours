@@ -107,6 +107,37 @@
   <!-- إشعارات النظام العائمة (Toast) -->
   <div id="toastContainer" class="fixed top-4 left-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
+  <!-- نافذة إعداد ربط Firebase في حال عدم وضع كود الإعدادات في الملف -->
+  <div id="firebaseSetupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9998] hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border-2 border-dahab-gold">
+      <div class="navy-gradient p-5 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-database text-dahab-gold text-xl"></i>
+          <h3 class="font-black text-base">ربط قاعدة بيانات Firebase السحابية</h3>
+        </div>
+        <button type="button" onclick="closeFirebaseSetupModal()" class="text-slate-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-6 space-y-4 text-xs">
+        <p class="text-slate-600 leading-relaxed">
+          لضمان حفظ كافة البيانات في جداول <strong>Firebase Firestore</strong> ومزامنتها لحظياً بين الكمبيوتر والموبايل، الصق كود <code>firebaseConfig</code> الخاص بمشروعك هنا (أو ضعه داخل متغير <code>CUSTOM_FIREBASE_CONFIG</code> في كود الملف ليعمل تلقائياً على جميع الأجهزة):
+        </p>
+        <textarea id="firebaseConfigInput" rows="7" dir="ltr" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "dahab-tours.firebaseapp.com",
+  "projectId": "dahab-tours",
+  "storageBucket": "dahab-tours.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef"
+}' class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
+        <div class="flex gap-2">
+          <button type="button" onclick="saveFirebaseConfigFromUI()" class="flex-1 py-3 rounded-xl navy-gradient text-dahab-gold font-black text-sm shadow">
+            حفظ والاتصال بقاعدة البيانات الآن
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================================================================== -->
   <!-- 1. شاشة تسجيل الدخول الموحدة (حاج / مشرف / إدارة)                    -->
   <!-- ===================================================================== -->
@@ -117,10 +148,15 @@
           <i class="fa-solid fa-kaaba text-3xl text-dahab-gold"></i>
         </div>
         <h1 class="text-2xl font-black">شركة دهب للسياحة</h1>
-        <p class="text-amber-200 text-xs mt-1">المنظومة الذكية لإدارة وتتبع الحجاج والمعتمرين</p>
-        <div id="dbConnectionBadge" class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-white/10 text-emerald-300">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>النظام جاهز للعمل الفوري</span>
+        <p class="text-amber-200 text-xs mt-1">المنظومة السحابية المتصلة بـ Firebase لإدارة الحجاج</p>
+        <div class="mt-3 flex items-center justify-center gap-2">
+          <div id="dbConnectionBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-white/10 text-amber-300">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span>جاري الاتصال بقاعدة بيانات Firebase...</span>
+          </div>
+          <button type="button" onclick="openFirebaseSetupModal()" title="إعدادات اتصال Firebase" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-dahab-gold flex items-center justify-center text-xs">
+            <i class="fa-solid fa-gear"></i>
+          </button>
         </div>
       </div>
 
@@ -142,11 +178,11 @@
         <form id="loginForm-pilgrim" onsubmit="handleLogin(event, 'pilgrim')" class="space-y-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">رقم جواز السفر</label>
-            <input type="text" id="pilgrimPassportInput" required placeholder="مثال: A102030" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
+            <input type="text" id="pilgrimPassportInput" required placeholder="أدخل رقم الجواز المسجل في الداتابيز" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
           </div>
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
             <i class="fa-solid fa-location-crosshairs text-amber-600 text-base"></i>
-            <span>سيتم طلب صلاحية الـ GPS الفعلي والإشعارات لمتابعة موقعك الحقيقي طوال الرحلة.</span>
+            <span>يتم التحقق من بياناتك مباشرة من قاعدة البيانات السحابية وتفعيل الـ GPS الفعلي.</span>
           </div>
           <button type="submit" class="w-full gold-gradient text-dahab-navy font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
             دخول بوابة الحاج
@@ -157,7 +193,7 @@
         <form id="loginForm-supervisor" onsubmit="handleLogin(event, 'supervisor')" class="space-y-4 hidden">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">كود المشرف أو رقم الجوال</label>
-            <input type="text" id="supervisorCodeInput" required placeholder="مثال: SUP-01 أو 0501112233" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
+            <input type="text" id="supervisorCodeInput" required placeholder="أدخل كود المشرف أو رقم الجوال" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-dahab-gold outline-none font-mono font-bold text-left" dir="ltr">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور</label>
@@ -183,20 +219,9 @@
           </button>
         </form>
 
-        <!-- أزرار الدخول السريع للتجربة -->
-        <div class="mt-6 pt-4 border-t border-slate-100">
-          <p class="text-[11px] font-bold text-slate-400 text-center mb-2">دخول تجريبي سريع بضغطة واحدة:</p>
-          <div class="grid grid-cols-3 gap-2 text-xs">
-            <button type="button" onclick="quickDemoLogin('pilgrim')" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border border-amber-200 transition">
-              حاج (A102030)
-            </button>
-            <button type="button" onclick="quickDemoLogin('supervisor')" class="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold border border-blue-200 transition">
-              مشرف (SUP-01)
-            </button>
-            <button type="button" onclick="quickDemoLogin('admin')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold border border-slate-300 transition">
-              الإدارة (Admin)
-            </button>
-          </div>
+        <!-- تنبيه حالة البيانات السحابية -->
+        <div id="loginDbSummary" class="mt-5 pt-3 border-t border-slate-100 text-center text-[11px] text-slate-500">
+          جاري جلب السجلات من قاعدة البيانات...
         </div>
       </div>
     </div>
@@ -264,7 +289,11 @@
         </nav>
       </div>
 
-      <div class="p-4 border-t border-white/10">
+      <div class="p-4 border-t border-white/10 space-y-2">
+        <button type="button" onclick="openFirebaseSetupModal()" class="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/15 text-dahab-gold text-xs font-bold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-database"></i>
+          <span>إعدادات اتصال Firebase</span>
+        </button>
         <button type="button" onclick="logout()" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center justify-center gap-2">
           <i class="fa-solid fa-right-from-bracket"></i>
           <span>تسجيل الخروج</span>
@@ -274,15 +303,17 @@
 
     <!-- محتوى الإدارة -->
     <main class="flex-1 flex flex-col min-w-0">
-      <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+      <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
         <div>
           <h1 id="adminSectionTitle" class="text-lg font-black text-dahab-navy">التحليلات والإحصائيات الذكية</h1>
-          <p class="text-xs text-slate-500">مزامنة لحظية مباشرة مع المشرفين والحجاج في الميدان</p>
+          <p class="text-xs text-slate-500">جميع الإضافات والتعديلات تُحفظ مباشرة في جداول Firebase السحابية</p>
         </div>
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>GPS فعلي مباشر</span>
-        </span>
+        <div class="flex items-center gap-2">
+          <span id="adminCloudStatusPill" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+            <span>جاري التحقق من السحابة...</span>
+          </span>
+        </div>
       </header>
 
       <div class="p-4 sm:p-6 space-y-6 flex-1 overflow-y-auto">
@@ -292,7 +323,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
               <div>
-                <span class="text-xs font-bold text-slate-500">إجمالي الحجاج</span>
+                <span class="text-xs font-bold text-slate-500">إجمالي الحجاج بالداتابيز</span>
                 <h3 id="statTotalPilgrims" class="text-3xl font-black text-dahab-navy mt-1">0</h3>
                 <span id="statGpsConnectedSub" class="text-[11px] text-blue-600 font-bold">0 متصل بالـ GPS الفعلي</span>
               </div>
@@ -374,7 +405,7 @@
         <!-- القسم 3: الرحلات والمجموعات -->
         <section id="sec-trips" class="admin-section hidden space-y-6">
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-            <h3 class="font-bold text-dahab-navy mb-4">إضافة رحلة حج / عمرة</h3>
+            <h3 class="font-bold text-dahab-navy mb-4">إضافة رحلة حج / عمرة (تُحفظ في جدول trips)</h3>
             <form onsubmit="handleAddTrip(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
               <input type="text" id="tripCode" required placeholder="كود الرحلة (HAJ-1447)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <select id="tripType" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
@@ -390,7 +421,7 @@
 
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
             <div class="flex items-center justify-between mb-4">
-              <h3 id="groupFormTitle" class="font-bold text-dahab-navy">تكويد مجموعة جديدة داخل رحلة</h3>
+              <h3 id="groupFormTitle" class="font-bold text-dahab-navy">تكويد مجموعة جديدة داخل رحلة (تُحفظ في جدول groups)</h3>
               <button type="button" id="cancelEditGroupBtn" onclick="resetGroupForm()" class="hidden px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
                 إلغاء التعديل
               </button>
@@ -412,7 +443,7 @@
               <input type="text" id="grpHotelMadinah" required placeholder="فندق المدينة المنورة" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="grpCampArafat" required placeholder="مخيم عرفات" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="grpCampMina" required placeholder="مخيم منى" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
-              <button type="submit" id="saveGroupBtn" class="sm:col-span-3 lg:col-span-4 py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">حفظ المجموعة</button>
+              <button type="submit" id="saveGroupBtn" class="sm:col-span-3 lg:col-span-4 py-2.5 px-4 rounded-xl gold-gradient text-dahab-navy font-black text-sm shadow">حفظ المجموعة في الداتابيز</button>
             </form>
             <div id="groupsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
           </div>
@@ -422,7 +453,7 @@
         <section id="sec-pilgrims" class="admin-section hidden space-y-6">
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h3 class="font-bold text-dahab-navy">إضافة / تعديل بيانات الحاج</h3>
+              <h3 class="font-bold text-dahab-navy">إضافة / تعديل بيانات الحاج (تُحفظ في جدول pilgrims)</h3>
               <div class="flex gap-2">
                 <button type="button" onclick="exportPilgrimsExcel()" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1.5">
                   <i class="fa-solid fa-file-excel"></i><span>تصدير Excel</span>
@@ -439,13 +470,13 @@
               <input type="text" id="pilgrimName" required placeholder="اسم الحاج بالكامل" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="number" id="pilgrimAge" required placeholder="السن" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <select id="pilgrimGroupId" required class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></select>
-              <input type="text" id="pilgrimPassport" required placeholder="رقم جواز السفر" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-mono">
+              <input type="text" id="pilgrimPassport" required placeholder="رقم جواز السفر (للدخول من الموبايل)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-mono">
               <input type="text" id="pilgrimHotel" placeholder="الفندق المخصص" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="pilgrimRoom" required placeholder="رقم غرفة مكة (مثال: 405)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="pilgrimMadinahRoom" placeholder="رقم غرفة المدينة (مثال: 302)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <input type="text" id="pilgrimHealth" placeholder="الحالة الصحية (سليم / سكري)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <div class="sm:col-span-2 lg:col-span-4 flex gap-2">
-                <button type="submit" class="flex-1 py-2.5 px-4 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">حفظ بيانات الحاج</button>
+                <button type="submit" class="flex-1 py-2.5 px-4 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">حفظ بيانات الحاج في الداتابيز</button>
                 <button type="button" onclick="resetPilgrimForm()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">إلغاء</button>
               </div>
             </form>
@@ -828,14 +859,69 @@
 
   <!-- منطق التطبيق الأساسي -->
   <script>
-    const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v3';
-    const LOCAL_STATE_KEY = 'dahab_tours_local_state_v3';
-    const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dahab_tours_sync_channel_v3') : null;
+    const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v4';
+    const FB_CONFIG_STORAGE_KEY = 'dahab_tours_firebase_config_v1';
 
     let adminMapInstance = null, adminBaseTile = null, adminMarkersLayer = null, adminMapMode = 'streets';
     let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
     let pickerMapInstance = null, pickerBaseTile = null, pickerMarker = null, pickerCircle = null, pickerMapMode = 'streets';
     let pilgrimGpsWatchId = null;
+
+    window.appState = {
+      cloudConnected: false,
+      role: null,
+      currentEntity: null,
+      trips: [],
+      groups: [],
+      pilgrims: [],
+      programs: [],
+      notifications: [],
+      locations: [],
+      sosAlerts: [],
+      qrCodes: [],
+      tasbeeh: 0
+    };
+
+    window.openFirebaseSetupModal = function() {
+      const saved = localStorage.getItem(FB_CONFIG_STORAGE_KEY);
+      if (saved) document.getElementById('firebaseConfigInput').value = saved;
+      const modal = document.getElementById('firebaseSetupModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    };
+
+    window.closeFirebaseSetupModal = function() {
+      const modal = document.getElementById('firebaseSetupModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    window.saveFirebaseConfigFromUI = function() {
+      let raw = document.getElementById('firebaseConfigInput').value.trim();
+      if (!raw) {
+        showToast('يرجى لصق كود firebaseConfig أولاً', 'error');
+        return;
+      }
+      // استخراج كائن JSON حتى لو قام المستخدم بلصق الكود كاملاً مع const firebaseConfig =
+      const firstBrace = raw.indexOf('{');
+      const lastBrace = raw.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        raw = raw.substring(firstBrace, lastBrace + 1);
+      }
+      try {
+        // تحويل الصيغة إلى JSON صالح حتى لو كانت المفاتيح بدون علامات تنصيص
+        const parsed = (new Function('return ' + raw))();
+        if (!parsed || !parsed.apiKey || !parsed.projectId) {
+          throw new Error('بيانات غير مكتملة');
+        }
+        localStorage.setItem(FB_CONFIG_STORAGE_KEY, JSON.stringify(parsed, null, 2));
+        closeFirebaseSetupModal();
+        showToast('تم حفظ إعدادات Firebase، جاري الاتصال بقاعدة البيانات...', 'success');
+        setTimeout(() => location.reload(), 600);
+      } catch (e) {
+        showToast('صيغة الكود غير صحيحة، تأكد من نسخ كود firebaseConfig من Firebase', 'error');
+      }
+    };
 
     function createMapTileLayer(mode) {
       if (mode === 'satellite') {
@@ -867,109 +953,32 @@
       }
     };
 
+    // الحفظ المباشر في جداول (Collections) قاعدة بيانات Firebase Firestore فقط
     window.dbSave = async function(colName, id, data) {
-      const list = window.appState[colName] || [];
-      if (id) {
-        const idx = list.findIndex(item => item.id === id);
-        if (idx > -1) list[idx] = { ...list[idx], ...data };
-      } else {
-        const newId = `${colName}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        list.push({ id: newId, ...data });
-        id = newId;
+      if (typeof window._cloudSave !== 'function') {
+        showToast('قاعدة بيانات Firebase غير متصلة! اضغط على أيقونة الترس لربط المشروع.', 'error');
+        openFirebaseSetupModal();
+        return;
       }
-      window.appState[colName] = list;
-      broadcastLocalState();
-      refreshAllUI();
-      if (typeof window._cloudSave === 'function') {
-        try { await window._cloudSave(colName, id, data); } catch (e) {}
+      try {
+        await window._cloudSave(colName, id, data);
+      } catch (e) {
+        console.error('Firestore Save Error:', e);
+        showToast('تعذر الحفظ في قاعدة البيانات: ' + e.message, 'error');
       }
     };
 
     window.dbDelete = async function(colName, id) {
-      window.appState[colName] = (window.appState[colName] || []).filter(item => item.id !== id);
-      broadcastLocalState();
-      refreshAllUI();
-      if (typeof window._cloudDelete === 'function') {
-        try { await window._cloudDelete(colName, id); } catch (e) {}
+      if (typeof window._cloudDelete !== 'function') {
+        showToast('قاعدة بيانات Firebase غير متصلة!', 'error');
+        return;
       }
-    };
-
-    // البيانات الافتراضية بدون أي مواقع GPS وهمية للحجاج (lat: null, lng: null)
-    const defaultSeedData = {
-      trips: [
-        { id: 'trip-1', code: 'HAJ-1447', type: 'حج سياحي', year: '1447 هـ' }
-      ],
-      groups: [
-        {
-          id: 'grp-1',
-          tripId: 'trip-1',
-          code: 'GRP-A1',
-          name: 'مجموعة النور المتميزة',
-          color: '#D4AF37',
-          supName: 'أ. محمود عبد الرحمن',
-          supCode: 'SUP-01',
-          supPass: '1234',
-          supPhone: '0501112233',
-          busNo: 'باص 101 - VIP',
-          hotelMakkah: 'فندق ساعة مكة فيرمونت',
-          hotelMadinah: 'فندق أنوار المدينة موفنبيك',
-          campArafat: 'مخيم عرفات المطور - بوابة 4',
-          campMina: 'مخيم منى المكيف - شارع الملك فهد'
-        },
-        {
-          id: 'grp-2',
-          tripId: 'trip-1',
-          code: 'GRP-B1',
-          name: 'مجموعة الصفا والمروة',
-          color: '#10B981',
-          supName: 'أ. طارق السعيد',
-          supCode: 'SUP-02',
-          supPass: '1234',
-          supPhone: '0504445566',
-          busNo: 'باص 102 - VIP',
-          hotelMakkah: 'فندق سويس أوتيل المقام',
-          hotelMadinah: 'فندق دار التقوى',
-          campArafat: 'مخيم عرفات - قطاع ب',
-          campMina: 'مخيم منى - قطاع ب'
-        }
-      ],
-      pilgrims: [
-        { id: 'pil-1', name: 'الحاج أحمد محمد محمود', age: 58, groupId: 'grp-1', passport: 'A102030', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'سليم', present: false, lat: null, lng: null },
-        { id: 'pil-2', name: 'الحاجة فاطمة علي حسن', age: 54, groupId: 'grp-1', passport: 'A102031', hotel: 'فندق ساعة مكة فيرمونت', room: '405', madinahRoom: '302', health: 'ضغط دم مستقر', present: true, lat: null, lng: null },
-        { id: 'pil-3', name: 'الحاج مصطفى إبراهيم سالم', age: 63, groupId: 'grp-1', passport: 'A102032', hotel: 'فندق ساعة مكة فيرمونت', room: '410', madinahRoom: '308', health: 'سكري', present: false, lat: null, lng: null },
-        { id: 'pil-4', name: 'الحاج خالد عبد الله عمر', age: 47, groupId: 'grp-2', passport: 'B203040', hotel: 'فندق سويس أوتيل المقام', room: '712', madinahRoom: '514', health: 'سليم', present: true, lat: null, lng: null }
-      ],
-      programs: [
-        { id: 'prg-1', day: '8 ذو الحجة (التروية)', time: '07:00 صباحاً', title: 'التحرك من فندق مكة إلى مشعر منى', details: 'التجمع في بهو الفندق بملابس الإحرام وحمل بطاقة الحاج والمظلة الشمسية.' },
-        { id: 'prg-2', day: '9 ذو الحجة (عرفة)', time: '06:30 صباحاً', title: 'التفويج إلى مشعر عرفات', details: 'الصعود للباصات المخصصة لكل مجموعة والالتزام بتعليمات المشرف.' }
-      ],
-      notifications: [
-        { id: 'ntf-1', targetGroup: 'all', priority: 'normal', title: 'أهلاً بضيوف الرحمن في شركة دهب للسياحة', message: 'نسأل الله لكم حجاً مبروراً وسعياً مشكوراً، يرجى إبقاء الـ GPS مفعلاً لسلامتكم.', sender: 'إدارة دهب للسياحة', time: '08:00 ص' }
-      ],
-      locations: [
-        { id: 'loc-1', name: 'منطقة الحرم وفنادق مكة', type: 'hotel', lat: 21.4225, lng: 39.8262, radius: 600 },
-        { id: 'loc-2', name: 'مخيمات منى', type: 'camp', lat: 21.4133, lng: 39.8933, radius: 800 },
-        { id: 'loc-3', name: 'مخيمات عرفات', type: 'camp', lat: 21.3549, lng: 39.9841, radius: 900 }
-      ],
-      sosAlerts: [],
-      qrCodes: [
-        { id: 'qr-1', title: 'تحضير باص 101 - مجموعة النور', groupId: 'grp-1', code: 'DAHAB-BUS-101' },
-        { id: 'qr-2', title: 'تحضير باص 102 - مجموعة الصفا', groupId: 'grp-2', code: 'DAHAB-BUS-102' }
-      ]
-    };
-
-    window.appState = {
-      role: null,
-      currentEntity: null,
-      trips: [],
-      groups: [],
-      pilgrims: [],
-      programs: [],
-      notifications: [],
-      locations: [],
-      sosAlerts: [],
-      qrCodes: [],
-      tasbeeh: 0
+      try {
+        await window._cloudDelete(colName, id);
+      } catch (e) {
+        console.error('Firestore Delete Error:', e);
+        showToast('تعذر الحذف من قاعدة البيانات: ' + e.message, 'error');
+      }
     };
 
     function showToast(message, type = 'info') {
@@ -992,56 +1001,8 @@
       setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
-      }, 3800);
+      }, 4000);
     }
-
-    function loadSeedIntoMemory() {
-      try {
-        const savedLocal = localStorage.getItem(LOCAL_STATE_KEY);
-        if (savedLocal) {
-          const parsed = JSON.parse(savedLocal);
-          Object.assign(window.appState, parsed);
-          return;
-        }
-      } catch (e) {}
-      const clone = JSON.parse(JSON.stringify(defaultSeedData));
-      Object.assign(window.appState, clone);
-    }
-
-    function broadcastLocalState() {
-      const payload = {
-        trips: window.appState.trips,
-        groups: window.appState.groups,
-        pilgrims: window.appState.pilgrims,
-        programs: window.appState.programs,
-        notifications: window.appState.notifications,
-        locations: window.appState.locations,
-        sosAlerts: window.appState.sosAlerts,
-        qrCodes: window.appState.qrCodes
-      };
-      try { localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(payload)); } catch (e) {}
-      if (syncChannel) {
-        try { syncChannel.postMessage(payload); } catch (e) {}
-      }
-    }
-
-    if (syncChannel) {
-      syncChannel.onmessage = (event) => {
-        if (event.data) {
-          Object.assign(window.appState, event.data);
-          refreshAllUI();
-        }
-      };
-    }
-
-    window.addEventListener('storage', (e) => {
-      if (e.key === LOCAL_STATE_KEY && e.newValue) {
-        try {
-          Object.assign(window.appState, JSON.parse(e.newValue));
-          refreshAllUI();
-        } catch (err) {}
-      }
-    });
 
     function saveAuthSession(role, entityId) {
       try {
@@ -1085,7 +1046,7 @@
       refreshAllUI();
     }
 
-    function restoreAuthSessionIfAvailable() {
+    window.tryRestoreSessionFromCloud = function() {
       try {
         const raw = sessionStorage.getItem(AUTH_SESSION_KEY);
         if (!raw) return;
@@ -1100,7 +1061,7 @@
           if (pil) enterPortal('pilgrim', pil);
         }
       } catch (e) {}
-    }
+    };
 
     window.switchLoginRole = function(role) {
       ['pilgrim', 'supervisor', 'admin'].forEach(r => {
@@ -1120,21 +1081,44 @@
 
     window.handleLogin = function(e, role) {
       if (e) e.preventDefault();
+      if (role === 'admin') {
+        const user = (document.getElementById('adminUserInput').value || '').trim().toLowerCase();
+        const pass = (document.getElementById('adminPassInput').value || '').trim();
+        if (user === 'admin' && (pass === 'dahab2026' || pass === '1234')) {
+          enterPortal('admin', { id: 'admin', name: 'الإدارة المركزية' });
+          if (!window.appState.cloudConnected) {
+            showToast('تنبيه: يرجى ربط مشروع Firebase لحفظ البيانات في السحابة', 'error');
+            openFirebaseSetupModal();
+          } else {
+            showToast('تم الدخول إلى غرفة العمليات المتصلة بـ Firebase', 'success');
+          }
+        } else {
+          showToast('بيانات دخول الإدارة غير صحيحة', 'error');
+        }
+        return;
+      }
+
+      if (!window.appState.cloudConnected) {
+        showToast('لم يتم الاتصال بقاعدة بيانات Firebase بعد! تأكد من إعدادات الربط.', 'error');
+        openFirebaseSetupModal();
+        return;
+      }
+
       if (role === 'pilgrim') {
         const input = (document.getElementById('pilgrimPassportInput').value || '').trim().toUpperCase();
-        const pil = window.appState.pilgrims.find(p => p.passport.toUpperCase() === input || p.id.toUpperCase() === input);
+        const pil = window.appState.pilgrims.find(p => (p.passport || '').toUpperCase() === input || (p.id || '').toUpperCase() === input);
         if (!pil) {
-          showToast('رقم جواز السفر غير مسجل في النظام، تأكد من الرقم أو جرب A102030', 'error');
+          showToast('رقم جواز السفر غير مسجل في قاعدة البيانات! تأكد من إضافته من لوحة الأدمن.', 'error');
           return;
         }
         enterPortal('pilgrim', pil);
-        showToast(`مرحباً بك ${pil.name} في بوابة الحاج`, 'success');
+        showToast(`مرحباً بك ${pil.name}`, 'success');
       } else if (role === 'supervisor') {
         const input = (document.getElementById('supervisorCodeInput').value || '').trim().toUpperCase();
         const pass = (document.getElementById('supervisorPassInput').value || '').trim();
-        const grp = window.appState.groups.find(g => g.supCode.toUpperCase() === input || g.supPhone === input || g.code.toUpperCase() === input);
+        const grp = window.appState.groups.find(g => (g.supCode || '').toUpperCase() === input || (g.supPhone || '') === input || (g.code || '').toUpperCase() === input);
         if (!grp) {
-          showToast('كود المشرف أو رقم الجوال غير صحيح، جرب SUP-01', 'error');
+          showToast('كود المشرف أو رقم الجوال غير مسجل في قاعدة البيانات!', 'error');
           return;
         }
         if (pass && grp.supPass && pass !== grp.supPass && pass !== '1234') {
@@ -1143,31 +1127,6 @@
         }
         enterPortal('supervisor', grp);
         showToast(`أهلاً بك ${grp.supName} - ${grp.name}`, 'success');
-      } else if (role === 'admin') {
-        const user = (document.getElementById('adminUserInput').value || '').trim().toLowerCase();
-        const pass = (document.getElementById('adminPassInput').value || '').trim();
-        if (user === 'admin' && (pass === 'dahab2026' || pass === '1234')) {
-          enterPortal('admin', { id: 'admin', name: 'الإدارة المركزية' });
-          showToast('تم الدخول إلى غرفة عمليات شركة دهب للسياحة', 'success');
-        } else {
-          showToast('بيانات دخول الإدارة غير صحيحة', 'error');
-        }
-      }
-    };
-
-    window.quickDemoLogin = function(role) {
-      window.switchLoginRole(role);
-      if (role === 'pilgrim') {
-        document.getElementById('pilgrimPassportInput').value = 'A102030';
-        window.handleLogin(null, 'pilgrim');
-      } else if (role === 'supervisor') {
-        document.getElementById('supervisorCodeInput').value = 'SUP-01';
-        document.getElementById('supervisorPassInput').value = '1234';
-        window.handleLogin(null, 'supervisor');
-      } else if (role === 'admin') {
-        document.getElementById('adminUserInput').value = 'admin';
-        document.getElementById('adminPassInput').value = 'dahab2026';
-        window.handleLogin(null, 'admin');
       }
     };
 
@@ -1231,7 +1190,7 @@
       document.getElementById('pilSupPhoneLink').href = `tel:${grp?.supPhone || ''}`;
 
       const myNotifs = window.appState.notifications.filter(n => n.targetGroup === 'all' || n.targetGroup === pil.groupId);
-      document.getElementById('pilNotificationsList').innerHTML = myNotifs.map(n => `
+      document.getElementById('pilNotificationsList').innerHTML = myNotifs.length ? myNotifs.map(n => `
         <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
           <div class="flex justify-between font-bold text-dahab-navy">
             <span>${n.title}</span>
@@ -1239,25 +1198,25 @@
           </div>
           <p class="text-slate-700 mt-1">${n.message}</p>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400">لا توجد إشعارات حالياً.</p>`;
 
-      document.getElementById('pilProgramsList').innerHTML = window.appState.programs.map(pr => `
+      document.getElementById('pilProgramsList').innerHTML = window.appState.programs.length ? window.appState.programs.map(pr => `
         <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
           <span class="font-bold text-dahab-goldDark">${pr.day} • ${pr.time}</span>
           <h4 class="font-extrabold text-dahab-navy text-sm mt-0.5">${pr.title}</h4>
           <p class="text-slate-600 mt-1">${pr.details}</p>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400">لم يتم إضافة برنامج يومي بعد.</p>`;
     }
 
     async function processScannedQrCode(decodedText) {
       const code = (decodedText || '').trim().toUpperCase();
       if (!code) return;
-      const valid = window.appState.qrCodes.some(q => q.code.toUpperCase() === code) || code.startsWith('DAHAB');
+      const valid = window.appState.qrCodes.some(q => (q.code || '').toUpperCase() === code) || code.startsWith('DAHAB');
       if (valid && window.appState.currentEntity) {
         await window.dbSave('pilgrims', window.appState.currentEntity.id, { present: true });
         await window.closeQrCheckinBox();
-        showToast('تم مسح الباركود وتسجيل حضورك في الباص بنجاح وتسميعه لدى المشرف والإدارة', 'success');
+        showToast('تم مسح الباركود وتسجيل حضورك في الباص بنجاح في قاعدة البيانات', 'success');
       } else {
         showToast('باركود غير صالح، يرجى مسح باركود باص شركة دهب الصحيح', 'error');
       }
@@ -1307,7 +1266,6 @@
       await processScannedQrCode(code);
     };
 
-    // طلب التتبع الفعلي الحقيقي من جهاز الحاج (بدون أي إحداثيات افتراضية)
     function requestPilgrimPermissions() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -1328,7 +1286,7 @@
               });
             }
           },
-          (err) => {
+          () => {
             if (gpsBadge) gpsBadge.textContent = 'يرجى تفعيل صلاحية الموقع (GPS) من المتصفح';
           },
           { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
@@ -1379,15 +1337,28 @@
       return window.appState.locations.some(loc => getDistanceMeters(pil.lat, pil.lng, loc.lat, loc.lng) <= (loc.radius || 500));
     }
 
-    function refreshAllUI() {
+    window.refreshAllUI = function() {
       const { trips, groups, pilgrims, programs, notifications, locations, sosAlerts, qrCodes } = window.appState;
 
+      const loginSummary = document.getElementById('loginDbSummary');
+      if (loginSummary) {
+        loginSummary.innerHTML = window.appState.cloudConnected
+          ? `متصل بـ Firebase • <b>${groups.length}</b> مجموعات | <b>${pilgrims.length}</b> حاج مسجل`
+          : `بانتظار ربط قاعدة بيانات Firebase لعرض السجلات`;
+      }
+
       const tripSelect = document.getElementById('grpTripId');
-      if (tripSelect) tripSelect.innerHTML = trips.map(t => `<option value="${t.id}">${t.type} (${t.code})</option>`).join('');
+      if (tripSelect) {
+        tripSelect.innerHTML = trips.length
+          ? trips.map(t => `<option value="${t.id}">${t.type} (${t.code})</option>`).join('')
+          : `<option value="">-- أضف رحلة أولاً بالأعلى --</option>`;
+      }
 
       const grpOptions = groups.map(g => `<option value="${g.id}">${g.name} (${g.code})</option>`).join('');
       const pilGrpSel = document.getElementById('pilgrimGroupId');
-      if (pilGrpSel) pilGrpSel.innerHTML = grpOptions;
+      if (pilGrpSel) {
+        pilGrpSel.innerHTML = groups.length ? grpOptions : `<option value="">-- أضف مجموعة أولاً --</option>`;
+      }
 
       const qrGrpSel = document.getElementById('qrGroupId');
       if (qrGrpSel) qrGrpSel.innerHTML = `<option value="all">جميع المجموعات</option>` + grpOptions;
@@ -1421,7 +1392,9 @@
       document.getElementById('adminSosBadge').textContent = sosAlerts.length;
 
       const insights = [];
-      if (gpsPilgrims.length === 0) {
+      if (totalPil === 0) {
+        insights.push(`🗄️ قاعدة البيانات متصلة وجاهزة: ابدأ بإضافة الرحلة والمجموعات والحجاج من القائمة الجانبية.`);
+      } else if (gpsPilgrims.length === 0) {
         insights.push(`📡 بانتظار دخول الحجاج من هواتفهم لتفعيل الإحداثيات الفعلية (GPS) وعرضها مباشرة على الخريطة.`);
       } else if (outsidePil > 0) {
         insights.push(`⚠️ يوجد ${outsidePil} حاج خارج نطاق أمان الفنادق والمواقع المحددة وفق إحداثياتهم الفعلية.`);
@@ -1434,7 +1407,7 @@
         <div class="bg-white/10 p-3.5 rounded-xl text-xs font-bold border border-white/10">${txt}</div>
       `).join('');
 
-      document.getElementById('groupCompletionList').innerHTML = groups.map(g => {
+      document.getElementById('groupCompletionList').innerHTML = groups.length ? groups.map(g => {
         const gPil = pilgrims.filter(p => p.groupId === g.id);
         const gPres = gPil.filter(p => p.present).length;
         const pct = gPil.length ? Math.round((gPres / gPil.length) * 100) : 0;
@@ -1449,9 +1422,9 @@
             </div>
           </div>
         `;
-      }).join('');
+      }).join('') : `<p class="text-xs text-slate-400">لا توجد مجموعات مسجلة في الداتابيز بعد.</p>`;
 
-      document.getElementById('locationPresenceList').innerHTML = locations.map(loc => {
+      document.getElementById('locationPresenceList').innerHTML = locations.length ? locations.map(loc => {
         const count = gpsPilgrims.filter(p => getDistanceMeters(p.lat, p.lng, loc.lat, loc.lng) <= loc.radius).length;
         return `
           <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
@@ -1462,9 +1435,9 @@
             <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black">${count} حاج متصل</span>
           </div>
         `;
-      }).join('');
+      }).join('') : `<p class="text-xs text-slate-400">لم يتم إضافة مواقع فنادق ونطاقات أمان بعد.</p>`;
 
-      document.getElementById('tripsList').innerHTML = trips.map(t => `
+      document.getElementById('tripsList').innerHTML = trips.length ? trips.map(t => `
         <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
           <div>
             <span class="font-bold text-dahab-navy text-sm block">${t.type}</span>
@@ -1472,9 +1445,9 @@
           </div>
           <button type="button" onclick="dbDelete('trips', '${t.id}')" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400 col-span-3">لا توجد رحلات في الداتابيز بعد.</p>`;
 
-      document.getElementById('groupsList').innerHTML = groups.map(g => `
+      document.getElementById('groupsList').innerHTML = groups.length ? groups.map(g => `
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -1494,9 +1467,9 @@
           <p class="text-xs text-slate-500"><b>مكة:</b> ${g.hotelMakkah} | <b>المدينة:</b> ${g.hotelMadinah}</p>
           <p class="text-xs text-slate-500"><b>عرفات:</b> ${g.campArafat} | <b>منى:</b> ${g.campMina}</p>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400 col-span-2">لا توجد مجموعات مسجلة في الداتابيز بعد.</p>`;
 
-      document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.map(p => {
+      document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.length ? pilgrims.map(p => {
         const grp = groups.find(g => g.id === p.groupId);
         const gpsActive = hasValidGps(p);
         return `
@@ -1524,10 +1497,10 @@
             </td>
           </tr>
         `;
-      }).join('');
+      }).join('') : `<tr><td colspan="7" class="p-6 text-center text-xs text-slate-400">لا يوجد حجاج مسجلون في جدول pilgrims حتى الآن.</td></tr>`;
 
       const qrContainer = document.getElementById('qrCodesList');
-      qrContainer.innerHTML = qrCodes.map(q => `
+      qrContainer.innerHTML = qrCodes.length ? qrCodes.map(q => `
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center text-center">
           <div id="qr-canvas-${q.id}" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 mb-3"></div>
           <h4 class="font-bold text-sm text-dahab-navy">${q.title}</h4>
@@ -1541,7 +1514,7 @@
             </button>
           </div>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400 col-span-3">لم يتم إنشاء أكواد باركود بعد.</p>`;
 
       setTimeout(() => {
         qrCodes.forEach(q => {
@@ -1598,7 +1571,7 @@
       if (adminMapInstance) renderAdminMapMarkers();
       if (window.appState.role === 'supervisor') renderSupervisorView();
       if (window.appState.role === 'pilgrim') renderPilgrimView();
-    }
+    };
 
     window.handleAddTrip = async function(e) {
       e.preventDefault();
@@ -1608,25 +1581,28 @@
         year: document.getElementById('tripYear').value.trim()
       });
       e.target.reset();
-      showToast('تم إضافة الرحلة بنجاح', 'success');
+      showToast('تم حفظ الرحلة في قاعدة البيانات', 'success');
     };
 
-    // إضافة أو تعديل مجموعة مع منع تكرار الكود أو الاسم
     window.handleSaveGroup = async function(e) {
       e.preventDefault();
       const editId = document.getElementById('editGroupId').value || null;
+      const tripId = document.getElementById('grpTripId').value;
+      if (!tripId) {
+        showToast('يرجى إضافة رحلة أولاً قبل تكويد المجموعة', 'error');
+        return;
+      }
+
       const code = document.getElementById('grpCode').value.trim().toUpperCase();
       const name = document.getElementById('grpName').value.trim();
 
-      // التحقق من عدم تكرار كود المجموعة
-      const duplicateCode = window.appState.groups.some(g => g.id !== editId && g.code.trim().toUpperCase() === code);
+      const duplicateCode = window.appState.groups.some(g => g.id !== editId && (g.code || '').trim().toUpperCase() === code);
       if (duplicateCode) {
         showToast(`عذراً، كود المجموعة (${code}) مستخدم بالفعل لمجموعة أخرى!`, 'error');
         return;
       }
 
-      // التحقق من عدم تكرار اسم المجموعة
-      const duplicateName = window.appState.groups.some(g => g.id !== editId && g.name.trim().toLowerCase() === name.toLowerCase());
+      const duplicateName = window.appState.groups.some(g => g.id !== editId && (g.name || '').trim().toLowerCase() === name.toLowerCase());
       if (duplicateName) {
         showToast(`عذراً، اسم المجموعة (${name}) مسجل بالفعل! يرجى اختيار اسم آخر.`, 'error');
         return;
@@ -1635,7 +1611,7 @@
       const existing = editId ? window.appState.groups.find(g => g.id === editId) : null;
 
       await window.dbSave('groups', editId, {
-        tripId: document.getElementById('grpTripId').value,
+        tripId: tripId,
         code: code,
         name: name,
         color: document.getElementById('grpColor').value,
@@ -1651,7 +1627,7 @@
       });
 
       resetGroupForm();
-      showToast(editId ? 'تم تحديث بيانات المجموعة بنجاح' : 'تم تكويد المجموعة بنجاح', 'success');
+      showToast(editId ? 'تم تحديث بيانات المجموعة في الداتابيز' : 'تم حفظ المجموعة في الداتابيز', 'success');
     };
 
     window.editGroup = function(id) {
@@ -1672,7 +1648,7 @@
       document.getElementById('grpCampMina').value = g.campMina;
 
       document.getElementById('groupFormTitle').textContent = `تعديل بيانات المجموعة: ${g.name}`;
-      document.getElementById('saveGroupBtn').textContent = 'حفظ التعديلات';
+      document.getElementById('saveGroupBtn').textContent = 'حفظ التعديلات في الداتابيز';
       document.getElementById('cancelEditGroupBtn').classList.remove('hidden');
       document.getElementById('groupFormTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
@@ -1691,21 +1667,33 @@
       document.getElementById('grpCampArafat').value = '';
       document.getElementById('grpCampMina').value = '';
 
-      document.getElementById('groupFormTitle').textContent = 'تكويد مجموعة جديدة داخل رحلة';
-      document.getElementById('saveGroupBtn').textContent = 'حفظ المجموعة';
+      document.getElementById('groupFormTitle').textContent = 'تكويد مجموعة جديدة داخل رحلة (تُحفظ في جدول groups)';
+      document.getElementById('saveGroupBtn').textContent = 'حفظ المجموعة في الداتابيز';
       document.getElementById('cancelEditGroupBtn').classList.add('hidden');
     };
 
-    // حفظ بيانات الحاج بدون أي إحداثيات GPS افتراضية
     window.handleSavePilgrim = async function(e) {
       e.preventDefault();
       const id = document.getElementById('editPilgrimId').value || null;
+      const groupId = document.getElementById('pilgrimGroupId').value;
+      if (!groupId) {
+        showToast('يرجى إضافة مجموعة أولاً قبل تسجيل الحاج', 'error');
+        return;
+      }
+
+      const passport = document.getElementById('pilgrimPassport').value.trim().toUpperCase();
+      const dupPassport = window.appState.pilgrims.some(p => p.id !== id && (p.passport || '').toUpperCase() === passport);
+      if (dupPassport) {
+        showToast(`رقم الجواز (${passport}) مسجل لحاج آخر بالفعل!`, 'error');
+        return;
+      }
+
       const existing = id ? window.appState.pilgrims.find(p => p.id === id) : null;
       await window.dbSave('pilgrims', id, {
         name: document.getElementById('pilgrimName').value.trim(),
         age: Number(document.getElementById('pilgrimAge').value),
-        groupId: document.getElementById('pilgrimGroupId').value,
-        passport: document.getElementById('pilgrimPassport').value.trim().toUpperCase(),
+        groupId: groupId,
+        passport: passport,
         hotel: document.getElementById('pilgrimHotel').value.trim(),
         room: document.getElementById('pilgrimRoom').value.trim(),
         madinahRoom: document.getElementById('pilgrimMadinahRoom').value.trim() || '-',
@@ -1715,7 +1703,7 @@
         lng: existing ? existing.lng : null
       });
       resetPilgrimForm();
-      showToast('تم حفظ بيانات الحاج بنجاح', 'success');
+      showToast('تم حفظ بيانات الحاج في قاعدة البيانات', 'success');
     };
 
     window.editPilgrim = function(id) {
@@ -1773,6 +1761,11 @@
     window.importPilgrimsExcel = function(e) {
       const file = e.target.files[0];
       if (!file) return;
+      const defaultGrpId = window.appState.groups[0]?.id;
+      if (!defaultGrpId) {
+        showToast('يرجى إضافة مجموعة أولاً قبل استيراد الحجاج', 'error');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = async function(evt) {
         try {
@@ -1780,7 +1773,6 @@
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json(sheet);
-          const defaultGrpId = window.appState.groups[0]?.id || 'grp-1';
           for (const row of json) {
             await window.dbSave('pilgrims', null, {
               name: row['الاسم'] || row['name'] || 'حاج مستورد',
@@ -1796,7 +1788,7 @@
               lng: null
             });
           }
-          showToast(`تم استيراد ${json.length} حاج بنجاح`, 'success');
+          showToast(`تم استيراد وحفظ ${json.length} حاج في Firebase بنجاح`, 'success');
         } catch (err) {
           showToast('تعذر قراءة ملف Excel', 'error');
         }
@@ -1813,7 +1805,7 @@
         code: randomCode
       });
       e.target.reset();
-      showToast('تم إنشاء الباركود بنجاح', 'success');
+      showToast('تم إنشاء وحفظ الباركود في الداتابيز', 'success');
     };
 
     window.printQrCode = function(qrId) {
@@ -1846,7 +1838,7 @@
         details: document.getElementById('progDetails').value.trim()
       });
       e.target.reset();
-      showToast('تم إضافة الفعالية للبرنامج', 'success');
+      showToast('تم حفظ ونشر الفعالية في البرنامج', 'success');
     };
 
     window.handleAddLocation = async function(e) {
@@ -1859,7 +1851,7 @@
         radius: Number(document.getElementById('locRadius').value) || 500
       });
       document.getElementById('locName').value = '';
-      showToast('تم حفظ الموقع ونطاق الأمان بنجاح', 'success');
+      showToast('تم حفظ الموقع ونطاق الأمان في قاعدة البيانات', 'success');
     };
 
     window.handleSendNotification = async function(e, senderName) {
@@ -1873,7 +1865,7 @@
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       });
       e.target.reset();
-      showToast('تم إرسال الإشعار بنجاح', 'success');
+      showToast('تم إرسال الإشعار وحفظه في الداتابيز', 'success');
     };
 
     function initAdminMap() {
@@ -1906,7 +1898,6 @@
       adminMapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
     };
 
-    // عرض الحجاج أصحاب المواقع الفعلية فقط (بدون أي مواقع افتراضية)
     window.renderAdminMapMarkers = function() {
       if (!adminMarkersLayer) return;
       adminMarkersLayer.clearLayers();
@@ -2029,7 +2020,7 @@
       document.getElementById('supPresentCount').textContent = presentCount;
       document.getElementById('supAbsentCount').textContent = myPilgrims.length - presentCount;
 
-      document.getElementById('supPilgrimsList').innerHTML = myPilgrims.map(p => `
+      document.getElementById('supPilgrimsList').innerHTML = myPilgrims.length ? myPilgrims.map(p => `
         <div class="p-3.5 rounded-xl border ${p.present ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'} flex items-center justify-between">
           <div>
             <h4 class="font-bold text-dahab-navy text-sm">${p.name}</h4>
@@ -2042,7 +2033,7 @@
             ${p.present ? 'موجود بالباص' : 'غير موجود'}
           </button>
         </div>
-      `).join('');
+      `).join('') : `<p class="text-xs text-slate-400">لا يوجد حجاج مسجلون في هذه المجموعة بعد.</p>`;
 
       if (supMapInstance) renderSupervisorMapMarkers();
     }
@@ -2123,13 +2114,10 @@
       window.appState.tasbeeh = 0;
       document.getElementById('tasbeehCounter').textContent = '0';
     };
-
-    loadSeedIntoMemory();
-    restoreAuthSessionIfAvailable();
   </script>
 
   <!-- ===================================================================== -->
-  <!-- المزامنة السحابية عبر Firebase                                        -->
+  <!-- المزامنة السحابية المباشرة والحصرية عبر Firebase Firestore             -->
   <!-- ===================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -2138,16 +2126,58 @@
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
 
-    // استبدل null بكود firebaseConfig الخاص بمشروعك من Firebase Console عند النشر
-    const CUSTOM_FIREBASE_CONFIG = null;
+    // ضع كود firebaseConfig الخاص بمشروعك هنا مكان null ليتم الربط تلقائياً على جميع الهواتف
+    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
+  apiKey: "AIzaSyAMuBjjJ3JCVFC9XYbJWJKZ-mf6nI6I-Qc",
+  authDomain: "dahab-tours.firebaseapp.com",
+  projectId: "dahab-tours",
+  storageBucket: "dahab-tours.firebasestorage.app",
+  messagingSenderId: "732016068774",
+  appId: "1:732016068774:web:33560cb9a6386074becc67",
+  measurementId: "G-PQLQ6ECZFR"
+};;
 
-    const firebaseConfig = typeof __firebase_config !== 'undefined'
-      ? JSON.parse(__firebase_config)
-      : CUSTOM_FIREBASE_CONFIG;
+    function getActiveFirebaseConfig() {
+      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        return JSON.parse(__firebase_config);
+      }
+      if (CUSTOM_FIREBASE_CONFIG && CUSTOM_FIREBASE_CONFIG.apiKey) {
+        return CUSTOM_FIREBASE_CONFIG;
+      }
+      try {
+        const saved = localStorage.getItem('dahab_tours_firebase_config_v1');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+      return null;
+    }
+
+    function updateConnectionUI(isConnected, message) {
+      window.appState.cloudConnected = isConnected;
+      const loginBadge = document.getElementById('dbConnectionBadge');
+      const adminPill = document.getElementById('adminCloudStatusPill');
+      if (loginBadge) {
+        loginBadge.className = isConnected
+          ? 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+          : 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-rose-500/20 text-rose-200 border border-rose-400/30';
+        loginBadge.innerHTML = `<span class="w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-400'}"></span><span>${message}</span>`;
+      }
+      if (adminPill) {
+        adminPill.className = isConnected
+          ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200'
+          : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200';
+        adminPill.innerHTML = `<span class="w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-ping' : 'bg-rose-500'}"></span><span>${message}</span>`;
+      }
+    }
 
     async function connectCloudFirebase() {
+      const firebaseConfig = getActiveFirebaseConfig();
+      if (!firebaseConfig) {
+        updateConnectionUI(false, 'غير متصل بـ Firebase (اضغط الترس للربط)');
+        window.refreshAllUI();
+        return;
+      }
+
       try {
-        if (!firebaseConfig) return;
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -2157,18 +2187,17 @@
         } else {
           await signInAnonymously(auth);
         }
-        if (!auth.currentUser) return;
 
-        const badge = document.getElementById('dbConnectionBadge');
-        if (badge) {
-          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>متصل بقاعدة البيانات السحابية</span>`;
+        if (!auth.currentUser) {
+          throw new Error('فشل المصادقة، تأكد من تفعيل Anonymous في Firebase Authentication');
         }
 
         window._cloudSave = async function(colName, id, data) {
+          const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
           if (id) {
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id), data, { merge: true });
+            await setDoc(doc(colRef, id), data, { merge: true });
           } else {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', colName), data);
+            await addDoc(colRef, data);
           }
         };
 
@@ -2176,26 +2205,29 @@
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id));
         };
 
+        updateConnectionUI(true, 'متصل مباشرة بـ Firebase Firestore');
+
         const collections = ['trips', 'groups', 'pilgrims', 'programs', 'notifications', 'locations', 'sosAlerts', 'qrCodes'];
+        let loadedCollections = 0;
+
         collections.forEach(colName => {
           const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
-          onSnapshot(colRef, async (snapshot) => {
-            if (snapshot.empty && colName === 'trips') {
-              for (const [cName, items] of Object.entries(defaultSeedData)) {
-                for (const item of items) {
-                  const { id, ...data } = item;
-                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', cName, id), data);
-                }
-              }
-              return;
-            }
+          onSnapshot(colRef, (snapshot) => {
             window.appState[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            broadcastLocalState();
-            refreshAllUI();
-          }, (err) => console.error(err));
+            loadedCollections++;
+            if (loadedCollections >= collections.length && !window.appState.role) {
+              window.tryRestoreSessionFromCloud();
+            }
+            window.refreshAllUI();
+          }, (err) => {
+            console.error(`Firestore listener error (${colName}):`, err);
+            updateConnectionUI(false, 'خطأ في صلاحيات Firestore (تأكد من Rules)');
+          });
         });
       } catch (err) {
-        console.warn('Running in local sync mode:', err.message);
+        console.error('Firebase Init Error:', err);
+        updateConnectionUI(false, 'تعذر الاتصال بـ Firebase');
+        window.showToast('خطأ في الاتصال بـ Firebase: ' + err.message, 'error');
       }
     }
 
