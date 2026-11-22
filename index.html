@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B192C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>شركة دهب للسياحة | نظام إدارة وتتبع الحجاج والمعتمرين</title>
   
   <!-- Tailwind CSS -->
@@ -107,21 +110,26 @@
   <!-- إشعارات النظام العائمة (Toast) -->
   <div id="toastContainer" class="fixed top-4 left-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-  <!-- نافذة إعداد ربط Firebase -->
+  <!-- نافذة إعداد ربط Firebase و VAPID للإشعارات في الخلفية -->
   <div id="firebaseSetupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9998] hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border-2 border-dahab-gold">
       <div class="navy-gradient p-5 text-white flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <i class="fa-solid fa-database text-dahab-gold text-xl"></i>
-          <h3 class="font-black text-base">ربط قاعدة بيانات Firebase السحابية</h3>
+          <h3 class="font-black text-base">ربط Firebase وإشعارات الخلفية (FCM)</h3>
         </div>
         <button type="button" onclick="closeFirebaseSetupModal()" class="text-slate-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <div class="p-6 space-y-4 text-xs">
-        <p class="text-slate-600 leading-relaxed">
-          تم دمج إعدادات مشروع <strong>dahab-tours</strong> تلقائياً في الكود. إذا ظهرت رسالة خطأ في الاتصال، تأكد من تفعيل <strong>Firestore Database (Test mode)</strong> و <strong>Anonymous Auth</strong> في لوحة Firebase:
-        </p>
-        <textarea id="firebaseConfigInput" rows="7" dir="ltr" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
+      <div class="p-6 space-y-4 text-xs max-h-[82vh] overflow-y-auto">
+        <div>
+          <label class="block font-bold text-dahab-navy mb-1">1. إعدادات مشروع Firebase (firebaseConfig):</label>
+          <textarea id="firebaseConfigInput" rows="6" dir="ltr" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block font-bold text-dahab-navy mb-1">2. مفتاح إشعارات الويب (Web Push VAPID Key) لوصول الإشعارات والهاتف مغلق:</label>
+          <input type="text" id="vapidKeyInput" dir="ltr" placeholder="ألصق مفتاح VAPID Key من Firebase > Cloud Messaging > Web configuration" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none">
+          <p class="text-[11px] text-slate-500 mt-1">من لوحة Firebase: Project Settings ← Cloud Messaging ← Web Push certificates ← Generate key pair.</p>
+        </div>
         <div class="flex gap-2">
           <button type="button" onclick="saveFirebaseConfigFromUI()" class="flex-1 py-3 rounded-xl navy-gradient text-dahab-gold font-black text-sm shadow">
             حفظ وإعادة الاتصال بقاعدة البيانات
@@ -147,7 +155,7 @@
             <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
             <span>جاري الاتصال بقاعدة بيانات Firebase...</span>
           </div>
-          <button type="button" onclick="openFirebaseSetupModal()" title="إعدادات اتصال Firebase" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-dahab-gold flex items-center justify-center text-xs">
+          <button type="button" onclick="openFirebaseSetupModal()" title="إعدادات اتصال Firebase و VAPID" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-dahab-gold flex items-center justify-center text-xs">
             <i class="fa-solid fa-gear"></i>
           </button>
         </div>
@@ -175,7 +183,7 @@
           </div>
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
             <i class="fa-solid fa-location-crosshairs text-amber-600 text-base"></i>
-            <span>يتم التحقق من بياناتك مباشرة من قاعدة البيانات السحابية وتفعيل الـ GPS الفعلي.</span>
+            <span>يتم التحقق من بياناتك مباشرة من قاعدة البيانات السحابية وتفعيل الـ GPS والإشعارات في الخلفية.</span>
           </div>
           <button type="submit" class="w-full gold-gradient text-dahab-navy font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
             دخول بوابة الحاج
@@ -285,7 +293,7 @@
       <div class="p-4 border-t border-white/10 space-y-2">
         <button type="button" onclick="openFirebaseSetupModal()" class="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/15 text-dahab-gold text-xs font-bold transition flex items-center justify-center gap-2">
           <i class="fa-solid fa-database"></i>
-          <span>إعدادات اتصال Firebase</span>
+          <span>إعدادات Firebase و VAPID</span>
         </button>
         <button type="button" onclick="logout()" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center justify-center gap-2">
           <i class="fa-solid fa-right-from-bracket"></i>
@@ -483,6 +491,7 @@
                     <th class="p-3">المجموعة</th>
                     <th class="p-3">الفندق والغرف</th>
                     <th class="p-3">حالة الـ GPS الفعلي</th>
+                    <th class="p-3">إشعارات الخلفية</th>
                     <th class="p-3">حضور الباص</th>
                     <th class="p-3">إجراءات</th>
                   </tr>
@@ -580,7 +589,8 @@
         <!-- القسم 8: إرسال الإشعارات -->
         <section id="sec-notifications" class="admin-section hidden space-y-6">
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-            <h3 class="font-bold text-dahab-navy mb-4">إرسال إشعارات وتعليمات للحجاج</h3>
+            <h3 class="font-bold text-dahab-navy mb-2">إرسال إشعارات وتعليمات للحجاج (تصل كإشعار خارجي للهاتف)</h3>
+            <p class="text-xs text-slate-500 mb-4">عند إرسال الإشعار يتم حفظه في قاعدة البيانات وتجهيزه للإرسال عبر شبكة الإشعارات السحابية FCM إلى هواتف الحجاج المسجلين.</p>
             <form onsubmit="handleSendNotification(event, 'إدارة دهب للسياحة')" class="space-y-3 mb-6">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select id="notifTargetGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
@@ -695,7 +705,7 @@
         <span id="pilGpsBadge" class="font-bold">جاري تحديد موقعك الفعلي عبر GPS...</span>
       </div>
       <button type="button" id="pilNotifPermBtn" onclick="requestMobilePushPermission(true)" class="text-amber-300 hover:text-white font-bold flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-lg">
-        <i class="fa-solid fa-bell"></i><span id="pilNotifPermText">تفعيل إشعارات الهاتف</span>
+        <i class="fa-solid fa-bell"></i><span id="pilNotifPermText">تفعيل إشعارات الخلفية</span>
       </button>
     </div>
 
@@ -723,6 +733,20 @@
           <i class="fa-solid fa-camera text-2xl mb-1.5"></i>
           <span class="font-black text-sm">مسح باركود الباص</span>
           <span id="pilAttendanceStatus" class="text-[11px] font-bold bg-white/60 px-2 py-0.5 rounded-full mt-0.5">اضغط لفتح الكاميرا</span>
+        </button>
+      </div>
+
+      <!-- بانر تنبيه لتفعيل إشعارات الخلفية والهاتف مغلق -->
+      <div id="pilBackgroundPushBanner" class="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-xs text-blue-900 flex items-center justify-between gap-2">
+        <div class="flex items-start gap-2">
+          <i class="fa-solid fa-mobile-screen-button text-blue-600 text-base mt-0.5"></i>
+          <div>
+            <b class="block">استلام الإشعارات والهاتف مغلق</b>
+            <span class="text-[11px] text-blue-700">فعّل الإشعارات وأضف الصفحة للشاشة الرئيسية لتصلك التعليمات فوراً حتى مع إغلاق المتصفح.</span>
+          </div>
+        </div>
+        <button type="button" onclick="requestMobilePushPermission(true)" class="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold whitespace-nowrap shadow-sm">
+          تفعيل الآن
         </button>
       </div>
 
@@ -871,6 +895,7 @@
   <script>
     const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v4';
     const FB_CONFIG_STORAGE_KEY = 'dahab_tours_firebase_config_v1';
+    const VAPID_KEY_STORAGE = 'dahab_tours_vapid_key_v1';
 
     let adminMapInstance = null, adminBaseTile = null, adminMarkersLayer = null, adminMapMode = 'streets';
     let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
@@ -881,6 +906,18 @@
     let initialNotifsLoaded = false;
     let focusedSosAlertId = null;
     let html5QrScannerInstance = null;
+    let swRegistrationRef = null;
+
+    // تسجيل Service Worker فور تحميل الصفحة لدعم الإشعارات في الخلفية والهاتف مغلق
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          swRegistrationRef = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+        } catch (err) {
+          console.warn('Service Worker registration notice:', err);
+        }
+      });
+    }
 
     window.appState = {
       cloudConnected: false,
@@ -900,6 +937,8 @@
     window.openFirebaseSetupModal = function() {
       const saved = localStorage.getItem(FB_CONFIG_STORAGE_KEY) || JSON.stringify(window.DEFAULT_DAHAB_FIREBASE_CONFIG, null, 2);
       if (saved) document.getElementById('firebaseConfigInput').value = saved;
+      const savedVapid = localStorage.getItem(VAPID_KEY_STORAGE) || '';
+      document.getElementById('vapidKeyInput').value = savedVapid;
       const modal = document.getElementById('firebaseSetupModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -913,6 +952,13 @@
 
     window.saveFirebaseConfigFromUI = function() {
       let raw = document.getElementById('firebaseConfigInput').value.trim();
+      const vapidVal = (document.getElementById('vapidKeyInput').value || '').trim();
+      if (vapidVal) {
+        localStorage.setItem(VAPID_KEY_STORAGE, vapidVal);
+      } else {
+        localStorage.removeItem(VAPID_KEY_STORAGE);
+      }
+
       if (!raw) {
         showToast('يرجى لصق كود firebaseConfig أولاً', 'error');
         return;
@@ -929,7 +975,7 @@
         }
         localStorage.setItem(FB_CONFIG_STORAGE_KEY, JSON.stringify(parsed, null, 2));
         closeFirebaseSetupModal();
-        showToast('تم حفظ إعدادات Firebase، جاري الاتصال بقاعدة البيانات...', 'success');
+        showToast('تم حفظ الإعدادات، جاري الاتصال بقاعدة البيانات...', 'success');
         setTimeout(() => location.reload(), 600);
       } catch (e) {
         showToast('صيغة الكود غير صحيحة، تأكد من نسخ كود firebaseConfig من Firebase', 'error');
@@ -1312,13 +1358,16 @@
 
     function updatePilgrimNotifBadgeUI() {
       const txt = document.getElementById('pilNotifPermText');
+      const banner = document.getElementById('pilBackgroundPushBanner');
       if (!txt || !('Notification' in window)) return;
       if (Notification.permission === 'granted') {
-        txt.textContent = 'الإشعارات مفعلة ✓';
+        txt.textContent = 'إشعارات الخلفية مفعلة ✓';
+        if (banner) banner.classList.add('hidden');
       } else if (Notification.permission === 'denied') {
         txt.textContent = 'الإشعارات محظورة من المتصفح';
       } else {
-        txt.textContent = 'اضغط لتفعيل إشعارات الهاتف';
+        txt.textContent = 'اضغط لتفعيل إشعارات الخلفية';
+        if (banner) banner.classList.remove('hidden');
       }
     }
 
@@ -1331,14 +1380,20 @@
         const perm = await Notification.requestPermission();
         updatePilgrimNotifBadgeUI();
         if (perm === 'granted') {
-          showToast('تم تفعيل إشعارات الموبايل بنجاح!', 'success');
-          triggerBrowserPushNotification('شركة دهب للسياحة', 'تم تفعيل التنبيهات الفورية على هاتفك بنجاح.');
+          showToast('تم تفعيل إشعارات الخلفية بنجاح!', 'success');
+          if (typeof window._registerPilgrimFcmToken === 'function') {
+            await window._registerPilgrimFcmToken();
+          }
+          triggerBrowserPushNotification('شركة دهب للسياحة', 'تم تفعيل الإشعارات الفورية لتصلك التعليمات حتى والهاتف مغلق.');
         } else if (userInitiated) {
           showToast('يرجى السماح بالإشعارات من إعدادات المتصفح لتصلك التعليمات فوراً', 'error');
         }
       } else if (Notification.permission === 'granted') {
         updatePilgrimNotifBadgeUI();
-        if (userInitiated) showToast('إشعارات الموبايل مفعلة بالفعل', 'success');
+        if (typeof window._registerPilgrimFcmToken === 'function') {
+          await window._registerPilgrimFcmToken();
+        }
+        if (userInitiated) showToast('إشعارات الخلفية مفعلة ومربوطة بهاتفك ✓', 'success');
       } else if (userInitiated) {
         showToast('الإشعارات محظورة، يرجى تفعيلها من إعدادات الموقع في المتصفح', 'error');
       }
@@ -1346,18 +1401,26 @@
 
     function triggerBrowserPushNotification(title, body) {
       try {
-        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        if ('vibrate' in navigator) navigator.vibrate([250, 100, 250]);
         if ('Notification' in window && Notification.permission === 'granted') {
+          const options = {
+            body,
+            dir: 'rtl',
+            lang: 'ar',
+            tag: 'dahab-notif-' + Date.now(),
+            renotify: true,
+            requireInteraction: true
+          };
           if (navigator.serviceWorker && navigator.serviceWorker.ready) {
             navigator.serviceWorker.ready.then(reg => {
               if (reg && reg.showNotification) {
-                reg.showNotification(title, { body, dir: 'rtl', lang: 'ar' });
+                reg.showNotification(title, options);
               } else {
-                new Notification(title, { body, dir: 'rtl', lang: 'ar' });
+                new Notification(title, options);
               }
-            }).catch(() => new Notification(title, { body, dir: 'rtl', lang: 'ar' }));
+            }).catch(() => new Notification(title, options));
           } else {
-            new Notification(title, { body, dir: 'rtl', lang: 'ar' });
+            new Notification(title, options);
           }
         }
       } catch (e) {}
@@ -1612,6 +1675,7 @@
       document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.length ? pilgrims.map(p => {
         const grp = groups.find(g => g.id === p.groupId);
         const gpsActive = hasValidGps(p);
+        const hasFcm = Boolean(p.fcmToken);
         return `
           <tr>
             <td class="p-3 font-bold text-dahab-navy">${p.name}</td>
@@ -1626,6 +1690,11 @@
                 ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>متصل فعلياً</span>`
                 : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">بانتظار GPS</span>`}
             </td>
+            <td class="p-3 text-xs">
+              ${hasFcm
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200"><i class="fa-solid fa-bell"></i>جاهز (FCM)</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-semibold">غير مفعل</span>`}
+            </td>
             <td class="p-3">
               <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-2.5 py-1 rounded-full text-xs font-bold ${p.present ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                 ${p.present ? 'موجود' : 'غير موجود'}
@@ -1637,7 +1706,7 @@
             </td>
           </tr>
         `;
-      }).join('') : `<tr><td colspan="7" class="p-6 text-center text-xs text-slate-400">لا يوجد حجاج مسجلون في جدول pilgrims حتى الآن.</td></tr>`;
+      }).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">لا يوجد حجاج مسجلون في جدول pilgrims حتى الآن.</td></tr>`;
 
       const qrContainer = document.getElementById('qrCodesList');
       qrContainer.innerHTML = qrCodes.length ? qrCodes.map(q => `
@@ -2036,12 +2105,19 @@
 
     window.handleSendNotification = async function(e, senderName) {
       e.preventDefault();
+      const targetGroup = document.getElementById('notifTargetGroup').value;
+      const targetTokens = window.appState.pilgrims
+        .filter(p => p.fcmToken && (targetGroup === 'all' || p.groupId === targetGroup))
+        .map(p => p.fcmToken);
+
       await window.dbSave('notifications', null, {
-        targetGroup: document.getElementById('notifTargetGroup').value,
+        targetGroup,
+        targetTokens,
         priority: document.getElementById('notifPriority').value,
         title: document.getElementById('notifTitle').value.trim(),
         message: document.getElementById('notifMessage').value.trim(),
         sender: senderName,
+        createdAtMs: Date.now(),
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       });
       e.target.reset();
@@ -2302,12 +2378,18 @@
     window.handleSupSendNotif = async function(e) {
       e.preventDefault();
       const grp = window.appState.currentEntity;
+      const targetTokens = window.appState.pilgrims
+        .filter(p => p.fcmToken && p.groupId === grp.id)
+        .map(p => p.fcmToken);
+
       await window.dbSave('notifications', null, {
         targetGroup: grp.id,
+        targetTokens,
         priority: 'urgent',
         title: document.getElementById('supNotifTitle').value.trim(),
         message: document.getElementById('supNotifMsg').value.trim(),
         sender: `المشرف: ${grp.supName}`,
+        createdAtMs: Date.now(),
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       });
       e.target.reset();
@@ -2367,12 +2449,13 @@
   </script>
 
   <!-- ===================================================================== -->
-  <!-- المزامنة السحابية المباشرة والحصرية عبر Firebase Firestore             -->
+  <!-- المزامنة السحابية المباشرة وإشعارات الخلفية عبر Firebase FCM          -->
   <!-- ===================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, addDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
 
@@ -2431,6 +2514,42 @@
         if (!auth.currentUser) {
           throw new Error('يرجى تفعيل Anonymous في Firebase Authentication');
         }
+
+        // إعداد Firebase Cloud Messaging لإرسال واستقبال الإشعارات في الخلفية والهاتف مغلق
+        let messaging = null;
+        try {
+          messaging = getMessaging(app);
+          onMessage(messaging, (payload) => {
+            const title = payload?.notification?.title || payload?.data?.title || 'شركة دهب للسياحة';
+            const body = payload?.notification?.body || payload?.data?.body || '';
+            triggerBrowserPushNotification(title, body);
+            window.showToast(`📢 ${title}: ${body}`, 'info');
+          });
+        } catch (fcmErr) {
+          console.warn('FCM init notice:', fcmErr);
+        }
+
+        window._registerPilgrimFcmToken = async function() {
+          if (!messaging || !('serviceWorker' in navigator)) return;
+          const pil = window.appState.currentEntity;
+          if (!pil || window.appState.role !== 'pilgrim') return;
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            const vapidKey = localStorage.getItem('dahab_tours_vapid_key_v1') || '';
+            const tokenOpts = { serviceWorkerRegistration: reg };
+            if (vapidKey) tokenOpts.vapidKey = vapidKey;
+
+            const currentToken = await getToken(messaging, tokenOpts);
+            if (currentToken) {
+              await window.dbSave('pilgrims', pil.id, {
+                fcmToken: currentToken,
+                fcmUpdatedAt: Date.now()
+              });
+            }
+          } catch (tokenErr) {
+            console.warn('FCM Token fetch notice:', tokenErr);
+          }
+        };
 
         window._cloudSave = async function(colName, id, data) {
           const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
