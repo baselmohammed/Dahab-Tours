@@ -496,7 +496,17 @@
         <!-- القسم 5: الباركود وتحضير الباص -->
         <section id="sec-qr" class="admin-section hidden space-y-6">
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-            <h3 class="font-bold text-dahab-navy mb-4">إنشاء باركود تحضير الباص (مع إمكانية الطباعة)</h3>
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 class="font-bold text-dahab-navy">إنشاء باركود تحضير الباص (مع إمكانية الطباعة)</h3>
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="adminResetGroupSelect" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-slate-50">
+                  <option value="all">جميع المجموعات</option>
+                </select>
+                <button type="button" onclick="resetBusAttendance('admin')" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow flex items-center gap-1.5 transition">
+                  <i class="fa-solid fa-rotate-left"></i><span>تصفير حضور الباص للتحرك التالي</span>
+                </button>
+              </div>
+            </div>
             <form onsubmit="handleCreateQr(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               <input type="text" id="qrTitle" required placeholder="عنوان التحرك (صعود باص 101)" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <select id="qrGroupId" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
@@ -642,7 +652,12 @@
 
       <!-- تبويب 1: كشف التحضير -->
       <section id="supSec-attendance" class="sup-section bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-dahab-navy mb-3">كشف تحضير الحجاج (التعديل يسمّع فوراً عند الإدارة)</h3>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 class="font-bold text-dahab-navy">كشف تحضير الحجاج (التعديل يسمّع فوراً عند الإدارة)</h3>
+          <button type="button" onclick="resetBusAttendance('supervisor')" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-rotate-left"></i><span>تصفير الحضور للتحرك التالي</span>
+          </button>
+        </div>
         <div id="supPilgrimsList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
       </section>
 
@@ -676,10 +691,12 @@
     <!-- شريط حالة GPS والإشعارات -->
     <div class="bg-emerald-900 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-40">
       <div class="flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span id="pilGpsDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
         <span id="pilGpsBadge" class="font-bold">جاري تحديد موقعك الفعلي عبر GPS...</span>
       </div>
-      <span class="text-amber-300 font-bold"><i class="fa-solid fa-bell ml-1"></i>الإشعارات مفعلة</span>
+      <button type="button" id="pilNotifPermBtn" onclick="requestMobilePushPermission(true)" class="text-amber-300 hover:text-white font-bold flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-lg">
+        <i class="fa-solid fa-bell"></i><span id="pilNotifPermText">تفعيل إشعارات الهاتف</span>
+      </button>
     </div>
 
     <header class="navy-gradient text-white p-5 rounded-b-3xl shadow-lg border-b-4 border-dahab-gold">
@@ -859,6 +876,11 @@
     let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
     let pickerMapInstance = null, pickerBaseTile = null, pickerMarker = null, pickerCircle = null, pickerMapMode = 'streets';
     let pilgrimGpsWatchId = null;
+    let pilgrimGpsHeartbeatTimer = null;
+    let knownNotificationIds = new Set();
+    let initialNotifsLoaded = false;
+    let focusedSosAlertId = null;
+    let html5QrScannerInstance = null;
 
     window.appState = {
       cloudConnected: false,
@@ -1119,9 +1141,20 @@
 
     window.logout = function() {
       if (typeof window.closeQrCheckinBox === 'function') window.closeQrCheckinBox();
+      if (window.appState.role === 'pilgrim' && window.appState.currentEntity) {
+        window.dbSave('pilgrims', window.appState.currentEntity.id, {
+          gpsActive: false,
+          lat: null,
+          lng: null
+        });
+      }
       if (pilgrimGpsWatchId !== null && 'geolocation' in navigator) {
         navigator.geolocation.clearWatch(pilgrimGpsWatchId);
         pilgrimGpsWatchId = null;
+      }
+      if (pilgrimGpsHeartbeatTimer) {
+        clearInterval(pilgrimGpsHeartbeatTimer);
+        pilgrimGpsHeartbeatTimer = null;
       }
       clearAuthSession();
       window.appState.role = null;
@@ -1134,8 +1167,6 @@
       document.getElementById('pilgrimApp').classList.remove('flex');
       document.getElementById('loginScreen').classList.remove('hidden');
     };
-
-    let html5QrScannerInstance = null;
 
     window.switchPilgrimTab = function(tabName) {
       ['card', 'schedule', 'manasik'].forEach(t => {
@@ -1151,6 +1182,78 @@
       });
     };
 
+    window.openQrCheckinBox = async function() {
+      const box = document.getElementById('pilQrBox');
+      if (!box) return;
+      box.classList.remove('hidden');
+      const statusMsg = document.getElementById('qrCameraStatusMsg');
+      if (statusMsg) statusMsg.textContent = 'جاري تشغيل الكاميرا لمسح الباركود...';
+
+      if (typeof Html5Qrcode === 'undefined') {
+        if (statusMsg) statusMsg.textContent = 'تعذر تحميل مكتبة الكاميرا، يرجى إدخال الكود يدوياً بالأسفل';
+        return;
+      }
+
+      try {
+        if (html5QrScannerInstance) {
+          await html5QrScannerInstance.stop().catch(() => {});
+          html5QrScannerInstance.clear();
+        }
+        html5QrScannerInstance = new Html5Qrcode('qrReaderContainer');
+        await html5QrScannerInstance.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          async (decodedText) => {
+            await processPilgrimQrCheckin(decodedText);
+            window.closeQrCheckinBox();
+          },
+          () => {}
+        );
+        if (statusMsg) statusMsg.textContent = 'وجه الكاميرا نحو ملصق الباركود على الباص';
+      } catch (err) {
+        if (statusMsg) statusMsg.textContent = 'تعذر فتح الكاميرا (تأكد من منح الإذن)، يمكنك إدخال الكود يدوياً بالأسفل';
+      }
+    };
+
+    window.closeQrCheckinBox = async function() {
+      const box = document.getElementById('pilQrBox');
+      if (box) box.classList.add('hidden');
+      if (html5QrScannerInstance) {
+        try {
+          await html5QrScannerInstance.stop();
+          html5QrScannerInstance.clear();
+        } catch (e) {}
+        html5QrScannerInstance = null;
+      }
+    };
+
+    window.submitManualQrCode = async function() {
+      const code = (document.getElementById('manualQrCodeInput')?.value || '').trim();
+      if (!code) {
+        showToast('يرجى إدخال كود الباركود أولاً', 'error');
+        return;
+      }
+      await processPilgrimQrCheckin(code);
+      window.closeQrCheckinBox();
+    };
+
+    async function processPilgrimQrCheckin(scannedCode) {
+      const pil = window.appState.currentEntity;
+      if (!pil) return;
+      const cleanCode = scannedCode.trim().toUpperCase();
+      const matchedQr = window.appState.qrCodes.find(q => (q.code || '').toUpperCase() === cleanCode);
+      if (window.appState.qrCodes.length > 0 && !matchedQr && !cleanCode.startsWith('DAHAB')) {
+        showToast('كود الباركود غير صالح أو لا يخص رحلات شركة دهب للسياحة', 'error');
+        return;
+      }
+      if (matchedQr && matchedQr.groupId !== 'all' && matchedQr.groupId !== pil.groupId) {
+        showToast('تنبيه: هذا الباركود مخصص لمجموعة أخرى غير مجموعتك!', 'error');
+        return;
+      }
+      await window.dbSave('pilgrims', pil.id, { present: true });
+      showToast('تم تسجيل حضورك بالباص بنجاح ✅', 'success');
+    }
+
     function renderPilgrimView() {
       const pil = window.appState.pilgrims.find(p => p.id === window.appState.currentEntity?.id) || window.appState.currentEntity;
       if (!pil) return;
@@ -1162,9 +1265,16 @@
       document.getElementById('pilAttendanceStatus').textContent = pil.present ? 'تم تسجيل حضورك بالباص ✅' : 'اضغط لفتح الكاميرا';
 
       const gpsBadge = document.getElementById('pilGpsBadge');
-      if (gpsBadge && typeof pil.lat === 'number' && typeof pil.lng === 'number') {
+      const gpsDot = document.getElementById('pilGpsDot');
+      if (gpsBadge && hasValidGps(pil)) {
         gpsBadge.textContent = `GPS فعلي متصل (${pil.lat.toFixed(4)}, ${pil.lng.toFixed(4)})`;
+        if (gpsDot) gpsDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping';
+      } else if (gpsBadge) {
+        gpsBadge.textContent = 'الـ GPS مغلق أو غير متصل حالياً';
+        if (gpsDot) gpsDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
       }
+
+      updatePilgrimNotifBadgeUI();
 
       document.getElementById('pilGroupName').textContent = grp?.name || '--';
       document.getElementById('pilBusNumber').textContent = grp?.busNo || '--';
@@ -1172,116 +1282,149 @@
       document.getElementById('pilRoomNumber').textContent = pil.room || '--';
       document.getElementById('pilHotelMadinah').textContent = grp?.hotelMadinah || '--';
       document.getElementById('pilMadinahRoomNumber').textContent = pil.madinahRoom || '--';
-      document.getElementById('pilCampsText').textContent = `${grp?.campArafat || '-'} / ${grp?.campMina || '-'}`;
+      document.getElementById('pilCampsText').textContent = `${grp?.campArafat || '--'} | ${grp?.campMina || '--'}`;
       document.getElementById('pilSupName').textContent = grp?.supName || '--';
-      document.getElementById('pilSupPhoneLink').href = `tel:${grp?.supPhone || ''}`;
+      const supPhoneLink = document.getElementById('pilSupPhoneLink');
+      if (supPhoneLink) {
+        supPhoneLink.href = grp?.supPhone ? `tel:${grp.supPhone}` : '#';
+      }
 
       const myNotifs = window.appState.notifications.filter(n => n.targetGroup === 'all' || n.targetGroup === pil.groupId);
       document.getElementById('pilNotificationsList').innerHTML = myNotifs.length ? myNotifs.map(n => `
-        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
-          <div class="flex justify-between font-bold text-dahab-navy">
-            <span>${n.title}</span>
+        <div class="p-3.5 rounded-2xl border ${n.priority === 'urgent' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}">
+          <div class="flex justify-between items-center text-[11px] font-bold mb-1">
+            <span class="${n.priority === 'urgent' ? 'text-rose-700' : 'text-dahab-goldDark'}">${n.sender || 'الإدارة'}</span>
             <span class="text-slate-400">${n.time || ''}</span>
           </div>
-          <p class="text-slate-700 mt-1">${n.message}</p>
+          <h4 class="font-bold text-dahab-navy text-xs">${n.title}</h4>
+          <p class="text-xs text-slate-600 mt-1">${n.message}</p>
         </div>
-      `).join('') : `<p class="text-xs text-slate-400">لا توجد إشعارات حالياً.</p>`;
+      `).join('') : `<p class="text-xs text-slate-400">لا توجد تعليمات أو إشعارات حالياً.</p>`;
 
       document.getElementById('pilProgramsList').innerHTML = window.appState.programs.length ? window.appState.programs.map(pr => `
-        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-          <span class="font-bold text-dahab-goldDark">${pr.day} • ${pr.time}</span>
-          <h4 class="font-extrabold text-dahab-navy text-sm mt-0.5">${pr.title}</h4>
-          <p class="text-slate-600 mt-1">${pr.details}</p>
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          <span class="text-[11px] font-bold text-dahab-goldDark">${pr.day} - ${pr.time}</span>
+          <h4 class="font-bold text-dahab-navy text-sm mt-0.5">${pr.title}</h4>
+          <p class="text-xs text-slate-600 mt-1">${pr.details}</p>
         </div>
-      `).join('') : `<p class="text-xs text-slate-400">لم يتم إضافة برنامج يومي بعد.</p>`;
+      `).join('') : `<p class="text-xs text-slate-400">لم يتم نشر تفاصيل البرنامج اليومي بعد.</p>`;
     }
 
-    async function processScannedQrCode(decodedText) {
-      const code = (decodedText || '').trim().toUpperCase();
-      if (!code) return;
-      const valid = window.appState.qrCodes.some(q => (q.code || '').toUpperCase() === code) || code.startsWith('DAHAB');
-      if (valid && window.appState.currentEntity) {
-        await window.dbSave('pilgrims', window.appState.currentEntity.id, { present: true });
-        await window.closeQrCheckinBox();
-        showToast('تم مسح الباركود وتسجيل حضورك في الباص بنجاح في قاعدة البيانات', 'success');
+    function updatePilgrimNotifBadgeUI() {
+      const txt = document.getElementById('pilNotifPermText');
+      if (!txt || !('Notification' in window)) return;
+      if (Notification.permission === 'granted') {
+        txt.textContent = 'الإشعارات مفعلة ✓';
+      } else if (Notification.permission === 'denied') {
+        txt.textContent = 'الإشعارات محظورة من المتصفح';
       } else {
-        showToast('باركود غير صالح، يرجى مسح باركود باص شركة دهب الصحيح', 'error');
+        txt.textContent = 'اضغط لتفعيل إشعارات الهاتف';
       }
     }
 
-    window.openQrCheckinBox = async function() {
-      const box = document.getElementById('pilQrBox');
-      const statusMsg = document.getElementById('qrCameraStatusMsg');
-      box.classList.remove('hidden');
-      statusMsg.textContent = 'جاري تشغيل الكاميرا لمسح الباركود...';
-      statusMsg.className = 'text-center text-xs font-bold text-emerald-700';
-
-      try {
-        if (typeof Html5Qrcode === 'undefined') throw new Error('QR Library not loaded');
-        if (html5QrScannerInstance) {
-          try { await html5QrScannerInstance.stop(); } catch (e) {}
+    window.requestMobilePushPermission = async function(userInitiated = false) {
+      if (!('Notification' in window)) {
+        if (userInitiated) showToast('متصفحك لا يدعم إشعارات Push الخارجية', 'info');
+        return;
+      }
+      if (Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        updatePilgrimNotifBadgeUI();
+        if (perm === 'granted') {
+          showToast('تم تفعيل إشعارات الموبايل بنجاح!', 'success');
+          triggerBrowserPushNotification('شركة دهب للسياحة', 'تم تفعيل التنبيهات الفورية على هاتفك بنجاح.');
+        } else if (userInitiated) {
+          showToast('يرجى السماح بالإشعارات من إعدادات المتصفح لتصلك التعليمات فوراً', 'error');
         }
-        html5QrScannerInstance = new Html5Qrcode('qrReaderContainer');
-        await html5QrScannerInstance.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 200, height: 200 } },
-          (decodedText) => {
-            processScannedQrCode(decodedText);
-          },
-          () => {}
-        );
-        statusMsg.textContent = 'الكاميرا نشطة: وجه العدسة نحو ملصق الباركود على باب الباص';
-      } catch (err) {
-        statusMsg.textContent = 'تعذر الوصول للكاميرا تلقائياً، يمكنك استخدام الإدخال اليدوي بالأسفل';
-        statusMsg.className = 'text-center text-xs font-bold text-amber-700';
+      } else if (Notification.permission === 'granted') {
+        updatePilgrimNotifBadgeUI();
+        if (userInitiated) showToast('إشعارات الموبايل مفعلة بالفعل', 'success');
+      } else if (userInitiated) {
+        showToast('الإشعارات محظورة، يرجى تفعيلها من إعدادات الموقع في المتصفح', 'error');
       }
     };
 
-    window.closeQrCheckinBox = async function() {
-      if (html5QrScannerInstance) {
-        try {
-          await html5QrScannerInstance.stop();
-          html5QrScannerInstance.clear();
-        } catch (e) {}
-        html5QrScannerInstance = null;
-      }
-      document.getElementById('pilQrBox')?.classList.add('hidden');
-    };
+    function triggerBrowserPushNotification(title, body) {
+      try {
+        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(reg => {
+              if (reg && reg.showNotification) {
+                reg.showNotification(title, { body, dir: 'rtl', lang: 'ar' });
+              } else {
+                new Notification(title, { body, dir: 'rtl', lang: 'ar' });
+              }
+            }).catch(() => new Notification(title, { body, dir: 'rtl', lang: 'ar' }));
+          } else {
+            new Notification(title, { body, dir: 'rtl', lang: 'ar' });
+          }
+        }
+      } catch (e) {}
+    }
 
-    window.submitManualQrCode = async function() {
-      const code = document.getElementById('manualQrCodeInput').value;
-      await processScannedQrCode(code);
-    };
+    function markPilgrimGpsOffline(reasonText) {
+      const gpsBadge = document.getElementById('pilGpsBadge');
+      const gpsDot = document.getElementById('pilGpsDot');
+      if (gpsBadge) gpsBadge.textContent = reasonText || 'تم إغلاق GPS - غير متصل بالخريطة';
+      if (gpsDot) gpsDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+      const pil = window.appState.currentEntity;
+      if (pil && (pil.gpsActive || typeof pil.lat === 'number')) {
+        window.dbSave('pilgrims', pil.id, {
+          gpsActive: false,
+          lat: null,
+          lng: null
+        });
+      }
+    }
 
     function requestPilgrimPermissions() {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
+      window.requestMobilePushPermission(false);
+      if (!('geolocation' in navigator)) {
+        markPilgrimGpsOffline('المتصفح لا يدعم GPS');
+        return;
       }
-      const gpsBadge = document.getElementById('pilGpsBadge');
-      if ('geolocation' in navigator) {
-        if (pilgrimGpsWatchId !== null) {
-          navigator.geolocation.clearWatch(pilgrimGpsWatchId);
+      if (pilgrimGpsWatchId !== null) {
+        navigator.geolocation.clearWatch(pilgrimGpsWatchId);
+      }
+      pilgrimGpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const pil = window.appState.currentEntity;
+          if (pil) {
+            window.dbSave('pilgrims', pil.id, {
+              gpsActive: true,
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              lastGpsTimestamp: Date.now(),
+              gpsUpdatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            });
+          }
+        },
+        () => {
+          markPilgrimGpsOffline('تم إغلاق GPS أو رفض الصلاحية - غير ظاهر على الخريطة');
+        },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+
+      if (pilgrimGpsHeartbeatTimer) clearInterval(pilgrimGpsHeartbeatTimer);
+      pilgrimGpsHeartbeatTimer = setInterval(() => {
+        const pil = window.appState.pilgrims.find(p => p.id === window.appState.currentEntity?.id) || window.appState.currentEntity;
+        if (!pil) return;
+        if (pil.lastGpsTimestamp && (Date.now() - pil.lastGpsTimestamp > 20000)) {
+          markPilgrimGpsOffline('انقطع اتصال GPS - غير متصل بالخريطة');
         }
-        pilgrimGpsWatchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            const pil = window.appState.currentEntity;
-            if (pil) {
-              window.dbSave('pilgrims', pil.id, {
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                gpsUpdatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-              });
-            }
-          },
-          () => {
-            if (gpsBadge) gpsBadge.textContent = 'يرجى تفعيل صلاحية الموقع (GPS) من المتصفح';
-          },
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-        );
-      } else if (gpsBadge) {
-        gpsBadge.textContent = 'المتصفح لا يدعم GPS';
-      }
+      }, 7000);
     }
+
+    window.addEventListener('beforeunload', () => {
+      if (window.appState.role === 'pilgrim' && window.appState.currentEntity) {
+        window.dbSave('pilgrims', window.appState.currentEntity.id, {
+          gpsActive: false,
+          lat: null,
+          lng: null
+        });
+      }
+    });
 
     window.switchAdminSection = function(secId) {
       document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
@@ -1306,7 +1449,10 @@
     };
 
     function hasValidGps(pil) {
-      return typeof pil.lat === 'number' && typeof pil.lng === 'number' && !isNaN(pil.lat) && !isNaN(pil.lng);
+      if (!pil || pil.gpsActive === false) return false;
+      if (typeof pil.lat !== 'number' || typeof pil.lng !== 'number' || isNaN(pil.lat) || isNaN(pil.lng)) return false;
+      if (pil.lastGpsTimestamp && (Date.now() - pil.lastGpsTimestamp > 35000)) return false;
+      return true;
     }
 
     function getDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -1349,6 +1495,13 @@
 
       const qrGrpSel = document.getElementById('qrGroupId');
       if (qrGrpSel) qrGrpSel.innerHTML = `<option value="all">جميع المجموعات</option>` + grpOptions;
+
+      const adminResetGrpSel = document.getElementById('adminResetGroupSelect');
+      if (adminResetGrpSel) {
+        const curReset = adminResetGrpSel.value || 'all';
+        adminResetGrpSel.innerHTML = `<option value="all">جميع المجموعات</option>` + grpOptions;
+        adminResetGrpSel.value = curReset;
+      }
 
       const notifGrpSel = document.getElementById('notifTargetGroup');
       if (notifGrpSel) notifGrpSel.innerHTML = `<option value="all">إرسال للجميع</option>` + grpOptions;
@@ -1528,32 +1681,49 @@
           <div>
             <h4 class="font-bold text-dahab-navy text-sm">${loc.name}</h4>
             <span class="text-xs text-slate-500">نطاق الأمان: ${loc.radius} متر</span>
+            <span class="block text-[10px] font-mono text-slate-400" dir="ltr">${Number(loc.lat).toFixed(4)}, ${Number(loc.lng).toFixed(4)}</span>
           </div>
           <button type="button" onclick="dbDelete('locations', '${loc.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
         </div>
       `).join('');
 
       document.getElementById('adminNotificationsList').innerHTML = notifications.map(n => `
-        <div class="p-3.5 rounded-xl border ${n.priority === 'urgent' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}">
-          <div class="flex justify-between text-xs font-bold">
-            <span class="text-dahab-navy">${n.title}</span>
-            <span class="text-slate-400">${n.sender} - ${n.time || ''}</span>
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-start">
+          <div>
+            <span class="text-[11px] font-bold text-dahab-goldDark">${n.sender || 'الإدارة'} • ${n.time || ''}</span>
+            <h4 class="font-bold text-dahab-navy text-sm">${n.title}</h4>
+            <p class="text-xs text-slate-600">${n.message}</p>
           </div>
-          <p class="text-xs text-slate-600 mt-1">${n.message}</p>
+          <button type="button" onclick="dbDelete('notifications', '${n.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
         </div>
       `).join('');
 
-      document.getElementById('adminSosList').innerHTML = sosAlerts.length ? sosAlerts.map(s => `
-        <div class="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 flex items-center justify-between">
+      document.getElementById('adminSosList').innerHTML = sosAlerts.length ? sosAlerts.map(s => {
+        const linkedPil = pilgrims.find(p => p.id === s.pilgrimId || p.passport === s.passport);
+        const effLat = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lat : s.lat;
+        const effLng = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lng : s.lng;
+        const hasCoords = typeof effLat === 'number' && typeof effLng === 'number' && !isNaN(effLat) && !isNaN(effLng);
+        return `
+        <div class="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 flex flex-wrap items-center justify-between gap-3">
           <div>
             <span class="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">استغاثة SOS</span>
             <h4 class="font-black text-rose-950 text-base mt-1">${s.pilgrimName}</h4>
             <p class="text-xs text-rose-800">${s.groupName} | جواز: ${s.passport}</p>
-            ${s.lat && s.lng ? `<p class="text-[11px] font-mono text-rose-700 mt-1">GPS: ${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}</p>` : ''}
+            ${hasCoords
+              ? `<p class="text-[11px] font-mono text-rose-700 mt-1">GPS: ${Number(effLat).toFixed(5)}, ${Number(effLng).toFixed(5)}</p>`
+              : `<p class="text-[11px] text-rose-600 mt-1">لم يرسل إحداثيات GPS وقت الاستغاثة</p>`}
           </div>
-          <button type="button" onclick="dbDelete('sosAlerts', '${s.id}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">تمت الاستجابة</button>
+          <div class="flex items-center gap-2">
+            ${hasCoords ? `
+              <button type="button" onclick="showSosOnAdminMap('${s.id}')" class="px-3 py-2 rounded-xl bg-dahab-navy text-dahab-gold text-xs font-bold shadow flex items-center gap-1.5 hover:opacity-90">
+                <i class="fa-solid fa-map-location-dot"></i><span>إظهار على الخريطة</span>
+              </button>
+            ` : ''}
+            <button type="button" onclick="resolveSosAlert('${s.id}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">تمت الاستجابة</button>
+          </div>
         </div>
-      `).join('') : `<p class="text-sm text-slate-500">لا توجد بلاغات طوارئ حالياً.</p>`;
+      `;
+      }).join('') : `<p class="text-sm text-slate-500">لا توجد بلاغات طوارئ حالياً.</p>`;
 
       if (adminMapInstance) renderAdminMapMarkers();
       if (window.appState.role === 'supervisor') renderSupervisorView();
@@ -1721,6 +1891,29 @@
     window.togglePilgrimPresent = async function(id, status) {
       await window.dbSave('pilgrims', id, { present: status });
       showToast(status ? 'تم تسجيل الحاج موجود بالباص' : 'تم تحديث الحالة إلى غير موجود', 'info');
+    };
+
+    window.resetBusAttendance = async function(source) {
+      let targetGroupId = 'all';
+      if (source === 'supervisor' && window.appState.currentEntity) {
+        targetGroupId = window.appState.currentEntity.id;
+      } else if (source === 'admin') {
+        targetGroupId = document.getElementById('adminResetGroupSelect')?.value || 'all';
+      }
+
+      const targets = window.appState.pilgrims.filter(p =>
+        p.present && (targetGroupId === 'all' || p.groupId === targetGroupId)
+      );
+
+      if (targets.length === 0) {
+        showToast('كشف الحضور مصفّر بالفعل (جميع الحجاج غير موجودين)', 'info');
+        return;
+      }
+
+      for (const p of targets) {
+        await window.dbSave('pilgrims', p.id, { present: false });
+      }
+      showToast(`تم تصفير حضور ${targets.length} حاج بنجاح للبدء في التحرك التالي`, 'success');
     };
 
     window.exportPilgrimsExcel = function() {
@@ -1911,6 +2104,50 @@
         L.marker([p.lat, p.lng], { icon }).addTo(adminMarkersLayer)
           .bindPopup(`<b>${p.name}</b><br>${grp?.name || ''}<br>غرفة مكة: ${p.room}<br><span style="color:#059669;font-size:11px;">GPS فعلي مباشر</span>`);
       });
+
+      window.appState.sosAlerts.forEach(s => {
+        const linkedPil = window.appState.pilgrims.find(p => p.id === s.pilgrimId || p.passport === s.passport);
+        const lat = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lat : s.lat;
+        const lng = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lng : s.lng;
+        if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
+
+        const sosIcon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-10 h-10 text-sm bg-rose-600 animate-bounce" style="border: 3px solid #FEF08A;"><i class="fa-solid fa-kit-medical"></i></div>`,
+          iconSize: [40, 40]
+        });
+        const marker = L.marker([lat, lng], { icon: sosIcon }).addTo(adminMarkersLayer)
+          .bindPopup(`<div style="text-align:right;"><b style="color:#e11d48;">🚨 استغاثة طوارئ SOS</b><br><b>${s.pilgrimName}</b><br>${s.groupName}<br>جواز: ${s.passport}</div>`);
+        if (focusedSosAlertId === s.id) {
+          marker.openPopup();
+        }
+      });
+    };
+
+    window.showSosOnAdminMap = function(sosId) {
+      const s = window.appState.sosAlerts.find(x => x.id === sosId);
+      if (!s) return;
+      const linkedPil = window.appState.pilgrims.find(p => p.id === s.pilgrimId || p.passport === s.passport);
+      const lat = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lat : s.lat;
+      const lng = (linkedPil && hasValidGps(linkedPil)) ? linkedPil.lng : s.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        showToast('لا تتوفر إحداثيات GPS لهذا البلاغ', 'error');
+        return;
+      }
+      focusedSosAlertId = sosId;
+      window.switchAdminSection('map');
+      setTimeout(() => {
+        if (adminMapInstance) {
+          adminMapInstance.setView([lat, lng], 17);
+          renderAdminMapMarkers();
+        }
+      }, 250);
+    };
+
+    window.resolveSosAlert = async function(sosId) {
+      if (focusedSosAlertId === sosId) focusedSosAlertId = null;
+      await window.dbDelete('sosAlerts', sosId);
+      showToast('تم إغلاق بلاغ الطوارئ وإزالته من الخريطة', 'success');
     };
 
     function initLocationPickerMap() {
@@ -2081,15 +2318,41 @@
       const pil = window.appState.currentEntity;
       if (!pil) return;
       const grp = window.appState.groups.find(g => g.id === pil.groupId);
-      await window.dbSave('sosAlerts', null, {
-        pilgrimName: pil.name,
-        groupName: grp?.name || 'مجموعة الحاج',
-        passport: pil.passport,
-        lat: pil.lat || null,
-        lng: pil.lng || null,
-        time: 'الآن'
-      });
-      showToast('تم إرسال نداء استغاثة عاجل مع موقعك للإدارة والمشرف!', 'error');
+
+      const saveSosWithCoords = async (latVal, lngVal) => {
+        await window.dbSave('sosAlerts', null, {
+          pilgrimId: pil.id,
+          pilgrimName: pil.name,
+          groupName: grp?.name || 'مجموعة الحاج',
+          passport: pil.passport,
+          lat: latVal,
+          lng: lngVal,
+          time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        });
+        showToast('تم إرسال نداء استغاثة عاجل مع موقعك للإدارة والمشرف!', 'error');
+      };
+
+      if (hasValidGps(pil)) {
+        await saveSosWithCoords(pil.lat, pil.lng);
+      } else if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            await window.dbSave('pilgrims', pil.id, {
+              gpsActive: true,
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              lastGpsTimestamp: Date.now()
+            });
+            await saveSosWithCoords(pos.coords.latitude, pos.coords.longitude);
+          },
+          async () => {
+            await saveSosWithCoords(null, null);
+          },
+          { enableHighAccuracy: true, timeout: 6000 }
+        );
+      } else {
+        await saveSosWithCoords(null, null);
+      }
     };
 
     window.incrementTasbeeh = function() {
@@ -2190,7 +2453,26 @@
         collections.forEach(colName => {
           const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
           onSnapshot(colRef, (snapshot) => {
-            window.appState[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const docsList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            if (colName === 'notifications') {
+              if (initialNotifsLoaded && window.appState.role === 'pilgrim' && window.appState.currentEntity) {
+                const myGroupId = window.appState.currentEntity.groupId;
+                docsList.forEach(n => {
+                  if (!knownNotificationIds.has(n.id) && (n.targetGroup === 'all' || n.targetGroup === myGroupId)) {
+                    triggerBrowserPushNotification(
+                      `شركة دهب للسياحة: ${n.title}`,
+                      n.message
+                    );
+                    window.showToast(`📢 إشعار جديد: ${n.title}`, 'info');
+                  }
+                });
+              }
+              knownNotificationIds = new Set(docsList.map(n => n.id));
+              initialNotifsLoaded = true;
+            }
+
+            window.appState[colName] = docsList;
             loadedCollections++;
             if (loadedCollections >= collections.length && !window.appState.role) {
               window.tryRestoreSessionFromCloud();
@@ -2202,6 +2484,12 @@
             window.showToast('يرجى فتح Firestore Rules وجعلها تسمح بالقراءة والكتابة', 'error');
           });
         });
+
+        setInterval(() => {
+          if (window.appState.role === 'admin' || window.appState.role === 'supervisor') {
+            window.refreshAllUI();
+          }
+        }, 10000);
       } catch (err) {
         console.error('Firebase Init Error:', err);
         let arMsg = err.message;
