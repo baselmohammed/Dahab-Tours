@@ -30,6 +30,9 @@
   <!-- SheetJS (XLSX) for Excel Import/Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+  <!-- OneSignal Web Push SDK v16 (لإرسال الإشعارات والهاتف مغلق مجاناً 100%) -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
   <script>
     tailwind.config = {
       theme: {
@@ -110,29 +113,41 @@
   <!-- إشعارات النظام العائمة (Toast) -->
   <div id="toastContainer" class="fixed top-4 left-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-  <!-- نافذة إعداد ربط Firebase و VAPID للإشعارات في الخلفية -->
+  <!-- نافذة إعداد ربط Firebase و OneSignal للإشعارات في الخلفية مجاناً -->
   <div id="firebaseSetupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9998] hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border-2 border-dahab-gold">
       <div class="navy-gradient p-5 text-white flex items-center justify-between">
         <div class="flex items-center gap-2.5">
-          <i class="fa-solid fa-database text-dahab-gold text-xl"></i>
-          <h3 class="font-black text-base">ربط Firebase وإشعارات الخلفية (FCM)</h3>
+          <i class="fa-solid fa-bell text-dahab-gold text-xl"></i>
+          <h3 class="font-black text-base">إعدادات Firebase و OneSignal (إشعارات الخلفية)</h3>
         </div>
         <button type="button" onclick="closeFirebaseSetupModal()" class="text-slate-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <div class="p-6 space-y-4 text-xs max-h-[82vh] overflow-y-auto">
-        <div>
-          <label class="block font-bold text-dahab-navy mb-1">1. إعدادات مشروع Firebase (firebaseConfig):</label>
-          <textarea id="firebaseConfigInput" rows="6" dir="ltr" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
+        <div class="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl space-y-2">
+          <h4 class="font-black text-emerald-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt text-emerald-600"></i>
+            <span>إعدادات OneSignal لإرسال الإشعارات والهاتف مغلق (مجاني 100%)</span>
+          </h4>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">OneSignal App ID:</label>
+            <input type="text" id="oneSignalAppIdInput" dir="ltr" placeholder="مثال: 8a1b2c3d-4e5f-6789-abcd-ef0123456789" class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:ring-2 focus:ring-dahab-gold outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">OneSignal REST API Key:</label>
+            <input type="text" id="oneSignalApiKeyInput" dir="ltr" placeholder="ألصق مفتاح REST API Key من OneSignal > Settings > Keys & IDs" class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:ring-2 focus:ring-dahab-gold outline-none">
+          </div>
+          <p class="text-[11px] text-emerald-800">تُحفظ هذه المفاتيح في قاعدة البيانات السحابية تلقائياً لتعمل على جميع الهواتف فوراً!</p>
         </div>
+
         <div>
-          <label class="block font-bold text-dahab-navy mb-1">2. مفتاح إشعارات الويب (Web Push VAPID Key) لوصول الإشعارات والهاتف مغلق:</label>
-          <input type="text" id="vapidKeyInput" dir="ltr" placeholder="ألصق مفتاح VAPID Key من Firebase > Cloud Messaging > Web configuration" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none">
-          <p class="text-[11px] text-slate-500 mt-1">من لوحة Firebase: Project Settings ← Cloud Messaging ← Web Push certificates ← Generate key pair.</p>
+          <label class="block font-bold text-dahab-navy mb-1">إعدادات مشروع Firebase (firebaseConfig):</label>
+          <textarea id="firebaseConfigInput" rows="5" dir="ltr" class="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs bg-slate-50 focus:ring-2 focus:ring-dahab-gold outline-none"></textarea>
         </div>
+
         <div class="flex gap-2">
           <button type="button" onclick="saveFirebaseConfigFromUI()" class="flex-1 py-3 rounded-xl navy-gradient text-dahab-gold font-black text-sm shadow">
-            حفظ وإعادة الاتصال بقاعدة البيانات
+            حفظ الإعدادات ومزامنتها على السحابة
           </button>
         </div>
       </div>
@@ -149,13 +164,13 @@
           <i class="fa-solid fa-kaaba text-3xl text-dahab-gold"></i>
         </div>
         <h1 class="text-2xl font-black">شركة دهب للسياحة</h1>
-        <p class="text-amber-200 text-xs mt-1">المنظومة السحابية المتصلة بـ Firebase لإدارة الحجاج</p>
+        <p class="text-amber-200 text-xs mt-1">المنظومة السحابية المتصلة بـ Firebase و OneSignal لإدارة الحجاج</p>
         <div class="mt-3 flex items-center justify-center gap-2">
           <div id="dbConnectionBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] bg-white/10 text-amber-300">
             <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
             <span>جاري الاتصال بقاعدة بيانات Firebase...</span>
           </div>
-          <button type="button" onclick="openFirebaseSetupModal()" title="إعدادات اتصال Firebase و VAPID" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-dahab-gold flex items-center justify-center text-xs">
+          <button type="button" onclick="openFirebaseSetupModal()" title="إعدادات Firebase و OneSignal" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-dahab-gold flex items-center justify-center text-xs">
             <i class="fa-solid fa-gear"></i>
           </button>
         </div>
@@ -183,7 +198,7 @@
           </div>
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
             <i class="fa-solid fa-location-crosshairs text-amber-600 text-base"></i>
-            <span>يتم التحقق من بياناتك مباشرة من قاعدة البيانات السحابية وتفعيل الـ GPS والإشعارات في الخلفية.</span>
+            <span>يتم التحقق من بياناتك مباشرة وتفعيل الـ GPS وإشعارات الموبايل في الخلفية.</span>
           </div>
           <button type="submit" class="w-full gold-gradient text-dahab-navy font-black py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
             دخول بوابة الحاج
@@ -292,8 +307,8 @@
 
       <div class="p-4 border-t border-white/10 space-y-2">
         <button type="button" onclick="openFirebaseSetupModal()" class="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/15 text-dahab-gold text-xs font-bold transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-database"></i>
-          <span>إعدادات Firebase و VAPID</span>
+          <i class="fa-solid fa-bell"></i>
+          <span>إعدادات OneSignal و Firebase</span>
         </button>
         <button type="button" onclick="logout()" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center justify-center gap-2">
           <i class="fa-solid fa-right-from-bracket"></i>
@@ -589,8 +604,13 @@
         <!-- القسم 8: إرسال الإشعارات -->
         <section id="sec-notifications" class="admin-section hidden space-y-6">
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-            <h3 class="font-bold text-dahab-navy mb-2">إرسال إشعارات وتعليمات للحجاج (تصل كإشعار خارجي للهاتف)</h3>
-            <p class="text-xs text-slate-500 mb-4">عند إرسال الإشعار يتم حفظه في قاعدة البيانات وتجهيزه للإرسال عبر شبكة الإشعارات السحابية FCM إلى هواتف الحجاج المسجلين.</p>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 class="font-bold text-dahab-navy">إرسال إشعارات وتعليمات للحجاج (تصل والهاتف مغلق عبر OneSignal)</h3>
+              <span id="oneSignalBadgeStatus" class="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                جاري التحقق من OneSignal...
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">عند الضغط على إرسال، يتم نشر الإشعار في الداتابيز وإرساله فوراً عبر OneSignal Push إلى شاشة قفل هواتف الحجاج.</p>
             <form onsubmit="handleSendNotification(event, 'إدارة دهب للسياحة')" class="space-y-3 mb-6">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select id="notifTargetGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold">
@@ -603,7 +623,7 @@
               </div>
               <input type="text" id="notifTitle" required placeholder="عنوان الإشعار" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
               <textarea id="notifMessage" rows="3" required placeholder="نص الرسالة..." class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"></textarea>
-              <button type="submit" class="py-2.5 px-6 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">إرسال الإشعار الآن</button>
+              <button type="submit" class="py-2.5 px-6 rounded-xl navy-gradient text-dahab-gold font-bold text-sm">إرسال الإشعار الفوري الآن</button>
             </form>
             <div id="adminNotificationsList" class="space-y-2.5"></div>
           </div>
@@ -684,7 +704,7 @@
 
       <!-- تبويب 3: إرسال تنبيه للمجموعة -->
       <section id="supSec-notify" class="sup-section hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-dahab-navy mb-3">إرسال تعليمات لحجاج مجموعتي</h3>
+        <h3 class="font-bold text-dahab-navy mb-3">إرسال تعليمات لحجاج مجموعتي (تصل والهاتف مغلق)</h3>
         <form onsubmit="handleSupSendNotif(event)" class="space-y-3">
           <input type="text" id="supNotifTitle" required placeholder="عنوان التنبيه" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
           <textarea id="supNotifMsg" rows="3" required placeholder="نص التعليمات..." class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"></textarea>
@@ -742,7 +762,7 @@
           <i class="fa-solid fa-mobile-screen-button text-blue-600 text-base mt-0.5"></i>
           <div>
             <b class="block">استلام الإشعارات والهاتف مغلق</b>
-            <span class="text-[11px] text-blue-700">فعّل الإشعارات وأضف الصفحة للشاشة الرئيسية لتصلك التعليمات فوراً حتى مع إغلاق المتصفح.</span>
+            <span class="text-[11px] text-blue-700">اضغط تفعيل واسمح بالإشعارات لتصلك تعليمات المشرف والإدارة حتى مع قفل شاشة الموبايل.</span>
           </div>
         </div>
         <button type="button" onclick="requestMobilePushPermission(true)" class="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold whitespace-nowrap shadow-sm">
@@ -895,7 +915,13 @@
   <script>
     const AUTH_SESSION_KEY = 'dahab_tours_auth_session_v4';
     const FB_CONFIG_STORAGE_KEY = 'dahab_tours_firebase_config_v1';
-    const VAPID_KEY_STORAGE = 'dahab_tours_vapid_key_v1';
+    const ONESIGNAL_STORAGE_KEY = 'dahab_tours_onesignal_cfg_v1';
+
+    // يمكن وضع مفاتيح OneSignal هنا مباشرة أو من أيقونة الترس (⚙️) في التطبيق
+    const DEFAULT_ONESIGNAL_CONFIG = {
+      appId: "",
+      restApiKey: ""
+    };
 
     let adminMapInstance = null, adminBaseTile = null, adminMarkersLayer = null, adminMapMode = 'streets';
     let supMapInstance = null, supBaseTile = null, supMarkersLayer = null, supMapMode = 'streets';
@@ -906,18 +932,7 @@
     let initialNotifsLoaded = false;
     let focusedSosAlertId = null;
     let html5QrScannerInstance = null;
-    let swRegistrationRef = null;
-
-    // تسجيل Service Worker فور تحميل الصفحة لدعم الإشعارات في الخلفية والهاتف مغلق
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          swRegistrationRef = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-        } catch (err) {
-          console.warn('Service Worker registration notice:', err);
-        }
-      });
-    }
+    let oneSignalInitialized = false;
 
     window.appState = {
       cloudConnected: false,
@@ -931,14 +946,121 @@
       locations: [],
       sosAlerts: [],
       qrCodes: [],
+      systemSettings: [],
       tasbeeh: 0
     };
+
+    function getActiveOneSignalConfig() {
+      const cloudDoc = window.appState.systemSettings.find(s => s.id === 'onesignal');
+      if (cloudDoc && cloudDoc.appId) {
+        return { appId: cloudDoc.appId, restApiKey: cloudDoc.restApiKey || '' };
+      }
+      try {
+        const local = JSON.parse(localStorage.getItem(ONESIGNAL_STORAGE_KEY) || 'null');
+        if (local && local.appId) return local;
+      } catch (e) {}
+      return DEFAULT_ONESIGNAL_CONFIG;
+    }
+
+    function initOneSignalSDK() {
+      const cfg = getActiveOneSignalConfig();
+      const statusBadge = document.getElementById('oneSignalBadgeStatus');
+      if (!cfg.appId) {
+        if (statusBadge) {
+          statusBadge.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200';
+          statusBadge.textContent = '⚠️ أدخل OneSignal App ID من أيقونة الترس';
+        }
+        return;
+      }
+      if (statusBadge) {
+        statusBadge.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        statusBadge.textContent = '✅ OneSignal متصل لإشعارات الخلفية';
+      }
+      if (oneSignalInitialized) return;
+      oneSignalInitialized = true;
+
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.init({
+            appId: cfg.appId,
+            allowLocalhostAsSecureOrigin: true,
+            serviceWorkerPath: 'OneSignalSDKWorker.js',
+            serviceWorkerParam: { scope: '/' }
+          });
+
+          // ربط الحاج بمجموعته في OneSignal فور دخوله
+          if (window.appState.role === 'pilgrim' && window.appState.currentEntity) {
+            await bindPilgrimToOneSignal(OneSignal, window.appState.currentEntity);
+          }
+        } catch (err) {
+          console.warn('OneSignal init notice:', err);
+        }
+      });
+    }
+
+    async function bindPilgrimToOneSignal(OneSignal, pil) {
+      if (!OneSignal || !pil) return;
+      try {
+        await OneSignal.login(pil.passport || pil.id);
+        await OneSignal.User.addTags({
+          role: 'pilgrim',
+          groupId: pil.groupId || 'all',
+          passport: pil.passport || ''
+        });
+        const subId = OneSignal.User?.PushSubscription?.id;
+        if (subId && pil.oneSignalId !== subId) {
+          await window.dbSave('pilgrims', pil.id, { oneSignalId: subId });
+        }
+      } catch (e) {
+        console.warn('OneSignal tag/login notice:', e);
+      }
+    }
+
+    async function sendOneSignalPushNotification(title, message, targetGroup) {
+      const cfg = getActiveOneSignalConfig();
+      if (!cfg.appId || !cfg.restApiKey) {
+        return { sent: false, reason: 'missing_keys' };
+      }
+      try {
+        const payload = {
+          app_id: cfg.appId,
+          headings: { en: `شركة دهب للسياحة: ${title}`, ar: `شركة دهب للسياحة: ${title}` },
+          contents: { en: message, ar: message },
+          chrome_web_icon: 'https://cdn-icons-png.flaticon.com/512/3176/3176363.png',
+          priority: 10
+        };
+
+        if (targetGroup && targetGroup !== 'all') {
+          payload.filters = [
+            { field: 'tag', key: 'groupId', relation: '=', value: targetGroup }
+          ];
+        } else {
+          payload.included_segments = ['Total Subscriptions'];
+        }
+
+        const resp = await fetch('https://api.onesignal.com/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Key ${cfg.restApiKey}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await resp.json();
+        return { sent: resp.ok, result };
+      } catch (err) {
+        console.error('OneSignal Push API Error:', err);
+        return { sent: false, reason: err.message };
+      }
+    }
 
     window.openFirebaseSetupModal = function() {
       const saved = localStorage.getItem(FB_CONFIG_STORAGE_KEY) || JSON.stringify(window.DEFAULT_DAHAB_FIREBASE_CONFIG, null, 2);
       if (saved) document.getElementById('firebaseConfigInput').value = saved;
-      const savedVapid = localStorage.getItem(VAPID_KEY_STORAGE) || '';
-      document.getElementById('vapidKeyInput').value = savedVapid;
+      const osCfg = getActiveOneSignalConfig();
+      document.getElementById('oneSignalAppIdInput').value = osCfg.appId || '';
+      document.getElementById('oneSignalApiKeyInput').value = osCfg.restApiKey || '';
       const modal = document.getElementById('firebaseSetupModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -950,36 +1072,36 @@
       modal.classList.remove('flex');
     };
 
-    window.saveFirebaseConfigFromUI = function() {
-      let raw = document.getElementById('firebaseConfigInput').value.trim();
-      const vapidVal = (document.getElementById('vapidKeyInput').value || '').trim();
-      if (vapidVal) {
-        localStorage.setItem(VAPID_KEY_STORAGE, vapidVal);
-      } else {
-        localStorage.removeItem(VAPID_KEY_STORAGE);
+    window.saveFirebaseConfigFromUI = async function() {
+      const osAppId = (document.getElementById('oneSignalAppIdInput').value || '').trim();
+      const osApiKey = (document.getElementById('oneSignalApiKeyInput').value || '').trim();
+
+      if (osAppId) {
+        const osObj = { appId: osAppId, restApiKey: osApiKey };
+        localStorage.setItem(ONESIGNAL_STORAGE_KEY, JSON.stringify(osObj));
+        if (window.appState.cloudConnected) {
+          await window.dbSave('systemSettings', 'onesignal', osObj);
+        }
       }
 
-      if (!raw) {
-        showToast('يرجى لصق كود firebaseConfig أولاً', 'error');
-        return;
-      }
-      const firstBrace = raw.indexOf('{');
-      const lastBrace = raw.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        raw = raw.substring(firstBrace, lastBrace + 1);
-      }
-      try {
-        const parsed = (new Function('return ' + raw))();
-        if (!parsed || !parsed.apiKey || !parsed.projectId) {
-          throw new Error('بيانات غير مكتملة');
+      let raw = document.getElementById('firebaseConfigInput').value.trim();
+      if (raw) {
+        const firstBrace = raw.indexOf('{');
+        const lastBrace = raw.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          raw = raw.substring(firstBrace, lastBrace + 1);
         }
-        localStorage.setItem(FB_CONFIG_STORAGE_KEY, JSON.stringify(parsed, null, 2));
-        closeFirebaseSetupModal();
-        showToast('تم حفظ الإعدادات، جاري الاتصال بقاعدة البيانات...', 'success');
-        setTimeout(() => location.reload(), 600);
-      } catch (e) {
-        showToast('صيغة الكود غير صحيحة، تأكد من نسخ كود firebaseConfig من Firebase', 'error');
+        try {
+          const parsed = (new Function('return ' + raw))();
+          if (parsed && parsed.apiKey && parsed.projectId) {
+            localStorage.setItem(FB_CONFIG_STORAGE_KEY, JSON.stringify(parsed, null, 2));
+          }
+        } catch (e) {}
       }
+
+      closeFirebaseSetupModal();
+      showToast('تم حفظ ومزامنة إعدادات OneSignal و Firebase بنجاح!', 'success');
+      initOneSignalSDK();
     };
 
     function createMapTileLayer(mode) {
@@ -1099,6 +1221,11 @@
         el.classList.remove('hidden');
         el.classList.add('flex');
         requestPilgrimPermissions();
+        if (window.OneSignalDeferred) {
+          window.OneSignalDeferred.push(async (OneSignal) => {
+            await bindPilgrimToOneSignal(OneSignal, entity);
+          });
+        }
       }
       refreshAllUI();
     }
@@ -1335,7 +1462,10 @@
         supPhoneLink.href = grp?.supPhone ? `tel:${grp.supPhone}` : '#';
       }
 
-      const myNotifs = window.appState.notifications.filter(n => n.targetGroup === 'all' || n.targetGroup === pil.groupId);
+      const myNotifs = window.appState.notifications
+        .filter(n => n.targetGroup === 'all' || n.targetGroup === pil.groupId)
+        .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
       document.getElementById('pilNotificationsList').innerHTML = myNotifs.length ? myNotifs.map(n => `
         <div class="p-3.5 rounded-2xl border ${n.priority === 'urgent' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}">
           <div class="flex justify-between items-center text-[11px] font-bold mb-1">
@@ -1376,32 +1506,61 @@
         if (userInitiated) showToast('متصفحك لا يدعم إشعارات Push الخارجية', 'info');
         return;
       }
+
+      if (window.OneSignalDeferred) {
+        window.OneSignalDeferred.push(async (OneSignal) => {
+          try {
+            await OneSignal.Notifications.requestPermission();
+            if (window.appState.currentEntity) {
+              await bindPilgrimToOneSignal(OneSignal, window.appState.currentEntity);
+            }
+            updatePilgrimNotifBadgeUI();
+            if (userInitiated && Notification.permission === 'granted') {
+              showToast('تم ربط هاتفك بنظام OneSignal لإشعارات الخلفية بنجاح ✓', 'success');
+            }
+          } catch (e) {}
+        });
+      }
+
       if (Notification.permission === 'default') {
         const perm = await Notification.requestPermission();
         updatePilgrimNotifBadgeUI();
         if (perm === 'granted') {
-          showToast('تم تفعيل إشعارات الخلفية بنجاح!', 'success');
-          if (typeof window._registerPilgrimFcmToken === 'function') {
-            await window._registerPilgrimFcmToken();
-          }
-          triggerBrowserPushNotification('شركة دهب للسياحة', 'تم تفعيل الإشعارات الفورية لتصلك التعليمات حتى والهاتف مغلق.');
+          triggerBrowserPushNotification('شركة دهب للسياحة', 'تم تفعيل الإشعارات الفورية لتصلك التعليمات والهاتف مغلق.');
         } else if (userInitiated) {
           showToast('يرجى السماح بالإشعارات من إعدادات المتصفح لتصلك التعليمات فوراً', 'error');
         }
       } else if (Notification.permission === 'granted') {
         updatePilgrimNotifBadgeUI();
-        if (typeof window._registerPilgrimFcmToken === 'function') {
-          await window._registerPilgrimFcmToken();
-        }
         if (userInitiated) showToast('إشعارات الخلفية مفعلة ومربوطة بهاتفك ✓', 'success');
       } else if (userInitiated) {
         showToast('الإشعارات محظورة، يرجى تفعيلها من إعدادات الموقع في المتصفح', 'error');
       }
     };
 
+    function playAlertChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+      } catch (e) {}
+    }
+
     function triggerBrowserPushNotification(title, body) {
       try {
-        if ('vibrate' in navigator) navigator.vibrate([250, 100, 250]);
+        playAlertChime();
+        if ('vibrate' in navigator) navigator.vibrate([300, 120, 300]);
         if ('Notification' in window && Notification.permission === 'granted') {
           const options = {
             body,
@@ -1535,6 +1694,8 @@
 
     window.refreshAllUI = function() {
       const { trips, groups, pilgrims, programs, notifications, locations, sosAlerts, qrCodes } = window.appState;
+
+      initOneSignalSDK();
 
       const loginSummary = document.getElementById('loginDbSummary');
       if (loginSummary) {
@@ -1675,7 +1836,7 @@
       document.getElementById('pilgrimsTableBody').innerHTML = pilgrims.length ? pilgrims.map(p => {
         const grp = groups.find(g => g.id === p.groupId);
         const gpsActive = hasValidGps(p);
-        const hasFcm = Boolean(p.fcmToken);
+        const hasPush = Boolean(p.oneSignalId);
         return `
           <tr>
             <td class="p-3 font-bold text-dahab-navy">${p.name}</td>
@@ -1691,9 +1852,9 @@
                 : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">بانتظار GPS</span>`}
             </td>
             <td class="p-3 text-xs">
-              ${hasFcm
-                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200"><i class="fa-solid fa-bell"></i>جاهز (FCM)</span>`
-                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-semibold">غير مفعل</span>`}
+              ${hasPush
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200"><i class="fa-solid fa-bell"></i>جاهز OneSignal</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-semibold">بانتظار السماح</span>`}
             </td>
             <td class="p-3">
               <button type="button" onclick="togglePilgrimPresent('${p.id}', ${!p.present})" class="px-2.5 py-1 rounded-full text-xs font-bold ${p.present ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
@@ -1756,7 +1917,8 @@
         </div>
       `).join('');
 
-      document.getElementById('adminNotificationsList').innerHTML = notifications.map(n => `
+      const sortedNotifs = [...notifications].sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+      document.getElementById('adminNotificationsList').innerHTML = sortedNotifs.map(n => `
         <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-start">
           <div>
             <span class="text-[11px] font-bold text-dahab-goldDark">${n.sender || 'الإدارة'} • ${n.time || ''}</span>
@@ -2106,22 +2268,29 @@
     window.handleSendNotification = async function(e, senderName) {
       e.preventDefault();
       const targetGroup = document.getElementById('notifTargetGroup').value;
-      const targetTokens = window.appState.pilgrims
-        .filter(p => p.fcmToken && (targetGroup === 'all' || p.groupId === targetGroup))
-        .map(p => p.fcmToken);
+      const title = document.getElementById('notifTitle').value.trim();
+      const message = document.getElementById('notifMessage').value.trim();
 
       await window.dbSave('notifications', null, {
         targetGroup,
-        targetTokens,
         priority: document.getElementById('notifPriority').value,
-        title: document.getElementById('notifTitle').value.trim(),
-        message: document.getElementById('notifMessage').value.trim(),
+        title,
+        message,
         sender: senderName,
         createdAtMs: Date.now(),
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       });
+
+      const pushRes = await sendOneSignalPushNotification(title, message, targetGroup);
       e.target.reset();
-      showToast('تم إرسال الإشعار وحفظه في الداتابيز', 'success');
+
+      if (pushRes.sent) {
+        showToast('تم إرسال الإشعار عبر OneSignal ليصل لهواتف الحجاج حتى والهاتف مغلق ✅', 'success');
+      } else if (pushRes.reason === 'missing_keys') {
+        showToast('تم حفظ الإشعار في التطبيق. أضف مفاتيح OneSignal من أيقونة الترس لوصوله والهاتف مغلق.', 'info');
+      } else {
+        showToast('تم حفظ الإشعار في الداتابيز، تعذر إرسال OneSignal: ' + pushRes.reason, 'error');
+      }
     };
 
     function initAdminMap() {
@@ -2378,22 +2547,22 @@
     window.handleSupSendNotif = async function(e) {
       e.preventDefault();
       const grp = window.appState.currentEntity;
-      const targetTokens = window.appState.pilgrims
-        .filter(p => p.fcmToken && p.groupId === grp.id)
-        .map(p => p.fcmToken);
+      const title = document.getElementById('supNotifTitle').value.trim();
+      const message = document.getElementById('supNotifMsg').value.trim();
 
       await window.dbSave('notifications', null, {
         targetGroup: grp.id,
-        targetTokens,
         priority: 'urgent',
-        title: document.getElementById('supNotifTitle').value.trim(),
-        message: document.getElementById('supNotifMsg').value.trim(),
+        title,
+        message,
         sender: `المشرف: ${grp.supName}`,
         createdAtMs: Date.now(),
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       });
+
+      await sendOneSignalPushNotification(title, message, grp.id);
       e.target.reset();
-      showToast('تم إرسال التنبيه لحجاج مجموعتك', 'success');
+      showToast('تم إرسال التنبيه لحجاج مجموعتك بنجاح', 'success');
     };
 
     window.sendPilgrimSos = async function() {
@@ -2449,13 +2618,12 @@
   </script>
 
   <!-- ===================================================================== -->
-  <!-- المزامنة السحابية المباشرة وإشعارات الخلفية عبر Firebase FCM          -->
+  <!-- المزامنة السحابية المباشرة عبر Firebase Firestore                     -->
   <!-- ===================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, addDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'dahab-tours-hajj-v1';
 
@@ -2515,42 +2683,6 @@
           throw new Error('يرجى تفعيل Anonymous في Firebase Authentication');
         }
 
-        // إعداد Firebase Cloud Messaging لإرسال واستقبال الإشعارات في الخلفية والهاتف مغلق
-        let messaging = null;
-        try {
-          messaging = getMessaging(app);
-          onMessage(messaging, (payload) => {
-            const title = payload?.notification?.title || payload?.data?.title || 'شركة دهب للسياحة';
-            const body = payload?.notification?.body || payload?.data?.body || '';
-            triggerBrowserPushNotification(title, body);
-            window.showToast(`📢 ${title}: ${body}`, 'info');
-          });
-        } catch (fcmErr) {
-          console.warn('FCM init notice:', fcmErr);
-        }
-
-        window._registerPilgrimFcmToken = async function() {
-          if (!messaging || !('serviceWorker' in navigator)) return;
-          const pil = window.appState.currentEntity;
-          if (!pil || window.appState.role !== 'pilgrim') return;
-          try {
-            const reg = await navigator.serviceWorker.ready;
-            const vapidKey = localStorage.getItem('dahab_tours_vapid_key_v1') || '';
-            const tokenOpts = { serviceWorkerRegistration: reg };
-            if (vapidKey) tokenOpts.vapidKey = vapidKey;
-
-            const currentToken = await getToken(messaging, tokenOpts);
-            if (currentToken) {
-              await window.dbSave('pilgrims', pil.id, {
-                fcmToken: currentToken,
-                fcmUpdatedAt: Date.now()
-              });
-            }
-          } catch (tokenErr) {
-            console.warn('FCM Token fetch notice:', tokenErr);
-          }
-        };
-
         window._cloudSave = async function(colName, id, data) {
           const colRef = collection(db, 'artifacts', appId, 'public', 'data', colName);
           if (id) {
@@ -2566,7 +2698,7 @@
 
         updateConnectionUI(true, 'متصل مباشرة بـ Firebase (dahab-tours)');
 
-        const collections = ['trips', 'groups', 'pilgrims', 'programs', 'notifications', 'locations', 'sosAlerts', 'qrCodes'];
+        const collections = ['trips', 'groups', 'pilgrims', 'programs', 'notifications', 'locations', 'sosAlerts', 'qrCodes', 'systemSettings'];
         let loadedCollections = 0;
 
         collections.forEach(colName => {
