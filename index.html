@@ -30,7 +30,7 @@
   <!-- SheetJS (XLSX) for Excel Import/Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  <!-- OneSignal Web Push SDK v16 (لإرسال الإشعارات والهاتف مغلق مجاناً 100%) -->
+  <!-- OneSignal Web Push SDK v16 -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 
   <script>
@@ -131,7 +131,7 @@
           </h4>
           <div>
             <label class="block font-bold text-slate-700 mb-1">OneSignal App ID:</label>
-            <input type="text" id="oneSignalAppIdInput" dir="ltr" placeholder="مثال: 8a1b2c3d-4e5f-6789-abcd-ef0123456789" class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:ring-2 focus:ring-dahab-gold outline-none">
+            <input type="text" id="oneSignalAppIdInput" dir="ltr" placeholder="26624435-2a01-42f5-bf4a-079a13bcf192" class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:ring-2 focus:ring-dahab-gold outline-none">
           </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">OneSignal REST API Key:</label>
@@ -917,9 +917,9 @@
     const FB_CONFIG_STORAGE_KEY = 'dahab_tours_firebase_config_v1';
     const ONESIGNAL_STORAGE_KEY = 'dahab_tours_onesignal_cfg_v1';
 
-    // يمكن وضع مفاتيح OneSignal هنا مباشرة أو من أيقونة الترس (⚙️) في التطبيق
+    // App ID الخاص بمشروع Dahab Tours App مضبوط تلقائياً
     const DEFAULT_ONESIGNAL_CONFIG = {
-      appId: "",
+      appId: "26624435-2a01-42f5-bf4a-079a13bcf192",
       restApiKey: ""
     };
 
@@ -962,6 +962,13 @@
       return DEFAULT_ONESIGNAL_CONFIG;
     }
 
+    function getSiteBaseScope() {
+      const path = window.location.pathname;
+      if (path.endsWith('/')) return path;
+      const lastSlash = path.lastIndexOf('/');
+      return lastSlash !== -1 ? path.substring(0, lastSlash + 1) : '/';
+    }
+
     function initOneSignalSDK() {
       const cfg = getActiveOneSignalConfig();
       const statusBadge = document.getElementById('oneSignalBadgeStatus');
@@ -973,11 +980,18 @@
         return;
       }
       if (statusBadge) {
-        statusBadge.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-        statusBadge.textContent = '✅ OneSignal متصل لإشعارات الخلفية';
+        statusBadge.className = cfg.restApiKey
+          ? 'px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200'
+          : 'px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200';
+        statusBadge.textContent = cfg.restApiKey
+          ? '✅ OneSignal متصل وجاهز للإرسال'
+          : '⚠️ أضف REST API Key في أيقونة الترس';
       }
       if (oneSignalInitialized) return;
       oneSignalInitialized = true;
+
+      const baseScope = getSiteBaseScope();
+      const swFullPath = `${baseScope}OneSignalSDKWorker.js`;
 
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async function(OneSignal) {
@@ -985,11 +999,10 @@
           await OneSignal.init({
             appId: cfg.appId,
             allowLocalhostAsSecureOrigin: true,
-            serviceWorkerPath: 'OneSignalSDKWorker.js',
-            serviceWorkerParam: { scope: '/' }
+            serviceWorkerPath: swFullPath,
+            serviceWorkerParam: { scope: baseScope }
           });
 
-          // ربط الحاج بمجموعته في OneSignal فور دخوله
           if (window.appState.role === 'pilgrim' && window.appState.currentEntity) {
             await bindPilgrimToOneSignal(OneSignal, window.appState.currentEntity);
           }
@@ -1027,7 +1040,6 @@
           app_id: cfg.appId,
           headings: { en: `شركة دهب للسياحة: ${title}`, ar: `شركة دهب للسياحة: ${title}` },
           contents: { en: message, ar: message },
-          chrome_web_icon: 'https://cdn-icons-png.flaticon.com/512/3176/3176363.png',
           priority: 10
         };
 
@@ -1036,19 +1048,26 @@
             { field: 'tag', key: 'groupId', relation: '=', value: targetGroup }
           ];
         } else {
-          payload.included_segments = ['Total Subscriptions'];
+          payload.included_segments = ['Total Subscriptions', 'Subscribed Users'];
         }
+
+        const cleanKey = cfg.restApiKey.trim();
+        const authHeader = cleanKey.startsWith('os_v2_') ? `Key ${cleanKey}` : `Basic ${cleanKey}`;
 
         const resp = await fetch('https://api.onesignal.com/notifications', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': `Key ${cfg.restApiKey}`
+            'Authorization': authHeader
           },
           body: JSON.stringify(payload)
         });
         const result = await resp.json();
-        return { sent: resp.ok, result };
+        if (!resp.ok) {
+          const errDetail = (result.errors && JSON.stringify(result.errors)) || resp.statusText;
+          return { sent: false, reason: errDetail };
+        }
+        return { sent: true, result };
       } catch (err) {
         console.error('OneSignal Push API Error:', err);
         return { sent: false, reason: err.message };
@@ -2287,9 +2306,9 @@
       if (pushRes.sent) {
         showToast('تم إرسال الإشعار عبر OneSignal ليصل لهواتف الحجاج حتى والهاتف مغلق ✅', 'success');
       } else if (pushRes.reason === 'missing_keys') {
-        showToast('تم حفظ الإشعار في التطبيق. أضف مفاتيح OneSignal من أيقونة الترس لوصوله والهاتف مغلق.', 'info');
+        showToast('تم حفظ الإشعار في التطبيق. أضف REST API Key في أيقونة الترس لوصوله والهاتف مغلق.', 'info');
       } else {
-        showToast('تم حفظ الإشعار في الداتابيز، تعذر إرسال OneSignal: ' + pushRes.reason, 'error');
+        showToast('تعذر إرسال OneSignal: ' + pushRes.reason, 'error');
       }
     };
 
